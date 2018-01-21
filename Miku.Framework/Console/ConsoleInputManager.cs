@@ -10,15 +10,16 @@ namespace Miku.Framework.Console
 	{
 		private readonly Console _console;
 		private bool _enabled;
-		private LinkedList<Command> _commandHistory  { get; } = new LinkedList<Command>();
-		private LinkedListNode<Command> _selectedCommandFromHistory;
-		
 
+		private LinkedList<CommandInfo> _commandHistory  { get; } = new LinkedList<CommandInfo>();
+		private LinkedListNode<CommandInfo> _selectedCommandFromHistory;
+		
 		internal KeyboardTextEditor TextEditor;
-		internal Dictionary<string, ConsoleCommand> Commands { get; } = new Dictionary<string, ConsoleCommand>();
+		internal List<ConsoleCommand> Commands = new List<ConsoleCommand>();
 
 		public List<string> ConsoleHistory { get; } = new List<string>();
 		public string CommandNotFoundMessage { get; set; } = "Unknow command";
+
 		public bool Enabled
 		{
 			get { return _enabled; }
@@ -28,11 +29,12 @@ namespace Miku.Framework.Console
 					return;
 
 				if (value)
-					TextEditor.IgnoreInput(1); // TODO: ignore console open key only
+					TextEditor.IgnoreInput(1); // TODO: ignore console open key only (safely)
 
 				_enabled = TextEditor.Enabled = value;
 			}
 		}
+
 		public string CurrentInput => TextEditor.Text;
 		public int CursorPosition => TextEditor.CursorPosition;
 
@@ -52,52 +54,78 @@ namespace Miku.Framework.Console
 			if (!Enabled)
 				return;
 
-
 			if (KeyboardComponent.KeyPressed(Keys.Down))
 			{
-				if (_selectedCommandFromHistory == null)
-					_selectedCommandFromHistory = _commandHistory.Last;
-				else if (_selectedCommandFromHistory != _commandHistory.First)
-					_selectedCommandFromHistory = _selectedCommandFromHistory.Previous;
-
-				TextEditor.Text = _selectedCommandFromHistory.Value.ToString();
-				TextEditor.SetCursorTo(InputCursorPosition.End);
+				CommandInfo nextCommand = GetNextHistoryItem();
+				if (nextCommand != null)
+				{
+					TextEditor.Text = _selectedCommandFromHistory.Value.ToString();
+					TextEditor.SetCursorTo(InputCursorPosition.End);
+				}
 			}
 
 			if (KeyboardComponent.KeyPressed(Keys.Up))
 			{
-				if (_selectedCommandFromHistory == null)
-					_selectedCommandFromHistory = _commandHistory.First;
-				else if (_selectedCommandFromHistory != _commandHistory.Last)
-					_selectedCommandFromHistory = _selectedCommandFromHistory.Next;
-
-				TextEditor.Text = _selectedCommandFromHistory.Value.ToString();
-				TextEditor.SetCursorTo(InputCursorPosition.End);
+				CommandInfo previousCommand = GetPreviousHistoryItem();
+				if (previousCommand != null)
+				{
+					TextEditor.Text = previousCommand.ToString();
+					TextEditor.SetCursorTo(InputCursorPosition.End);
+				}
 			}
 
 			TextEditor.Update(gameTime);
 		}
-		
+
+		public CommandInfo GetPreviousHistoryItem()
+		{
+			if (_commandHistory.Count == 0)
+				return null;
+
+			if (_selectedCommandFromHistory == null)
+				_selectedCommandFromHistory = _commandHistory.First;
+			else if (_selectedCommandFromHistory != _commandHistory.Last)
+				_selectedCommandFromHistory = _selectedCommandFromHistory.Next;
+
+			return _selectedCommandFromHistory?.Value;
+		}
+
+		public CommandInfo GetNextHistoryItem()
+		{
+			if (_selectedCommandFromHistory == null)
+				return null;
+
+			if (_selectedCommandFromHistory == null)
+				_selectedCommandFromHistory = _commandHistory.Last;
+			else if (_selectedCommandFromHistory != _commandHistory.First)
+				_selectedCommandFromHistory = _selectedCommandFromHistory.Previous;
+
+			return _selectedCommandFromHistory?.Value;
+		}
+
 		private void CommandEntered(object sender, TextEnteredEventArgs e)
 		{
-			Command command = Command.Parse(e.EnteredText);
+			CommandInfo commandInfo = CommandInfo.FromString(e.EnteredText);
 
-			//if(_commandHistory.First != null && command != _commandHistory.First.Value)
-			_commandHistory.AddFirst(command);
+			if(_commandHistory.First == null)
+				_commandHistory.AddFirst(commandInfo);
+			else if(!_commandHistory.First.Value.Equals(commandInfo))
+				_commandHistory.AddFirst(commandInfo);
 
 			_selectedCommandFromHistory = null;
 
-			if (IsValideCommand(command.CommandName))
+			var command = Commands.Find(i => i.CommandName == commandInfo.CommandName);
+
+			if (command != null)
 			{
-				string result = Commands[command.CommandName]?.Invoke(command.Args);
+				string result = command.Function?.Invoke(commandInfo.Args);
 				ConsoleHistory.Add(e.EnteredText);
 				if (result != null)
 					ConsoleHistory.Add("- " + result);
 			}
 			else
-				ConsoleHistory.Add(GenerateNotFoundMessage(command.CommandName));
+				ConsoleHistory.Add(GenerateNotFoundMessage(commandInfo.CommandName));
 		}
 		private string GenerateNotFoundMessage(string command) =>  $"{CommandNotFoundMessage} \"{command}\"";
-		private bool IsValideCommand(string command) => Commands.ContainsKey(command);
 	}
 }

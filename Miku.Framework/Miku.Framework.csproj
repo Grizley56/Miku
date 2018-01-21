@@ -45,8 +45,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Console\Command.cs" />
+    <Compile Include="Console\CommandInfo.cs" />
     <Compile Include="Console\Console.cs" />
-    <Compile Include="Console\ConsoleHistory.cs" />
     <Compile Include="Console\ConsoleInputManager.cs" />
     <Compile Include="Console\ConsoleRenderManager.cs" />
     <Compile Include="Console\IConsole.cs" />

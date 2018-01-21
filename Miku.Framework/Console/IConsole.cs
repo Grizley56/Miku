@@ -9,6 +9,6 @@ namespace Miku.Framework.Console
 	public interface IConsole
 	{
 		void Toggle();
-		bool AddCommand(string commandName, ConsoleCommand commandFunc);
+		bool AddCommand(ConsoleCommand command);
 	}
 }

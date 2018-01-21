@@ -8,54 +8,57 @@ using System.Threading.Tasks;
 
 namespace Miku.Framework.Console
 {
-	public struct Command
+	public delegate string CommandFunc(string[] args);
+
+	public class ConsoleCommand: IEquatable<ConsoleCommand>
 	{
 		public string CommandName { get; }
-		public string[] Args { get; }
+		public string CommandHelp { get; }
+		public CommandFunc Function { get; }
 
-		public Command(string commandName, string[] args = null)
+		public ConsoleCommand(string commandName, CommandFunc function, string commandHelp = null)
 		{
 			CommandName = commandName;
-			Args = args ?? new string[0];
+			Function = function;
+			CommandHelp = commandHelp;
 		}
 
 		public override string ToString()
 		{
-			string result = CommandName;
-			if (Args.Length != 0)
-				result += " " + String.Join(" ", Args);
-			return result;
+			return CommandName;
 		}
 
-		public static Command Parse(string command)
+		public bool Equals(ConsoleCommand other)
 		{
-			if (command == null)
-				throw new ArgumentNullException(nameof(command));
-
-			
-			int argsStart = command.IndexOf(' ');
-			if (argsStart == -1)
-				return new Command(command);
-
-			string commandName = command.Substring(0, argsStart);
-			string args = command.Substring(argsStart);
-
-			return new Command(commandName, args.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries));
+			if (ReferenceEquals(null, other)) return false;
+			if (ReferenceEquals(this, other)) return true;
+			return string.Equals(CommandName, other.CommandName, StringComparison.OrdinalIgnoreCase);
 		}
 
-		public static bool operator ==(Command command1, Command command2)
+		public override bool Equals(object obj)
 		{
-			if (!string.Equals(command1.CommandName, command2.CommandName, StringComparison.OrdinalIgnoreCase))
-				return false;
-			if (command1.Args.Length != command2.Args.Length)
-				return false;
-			var difference = command1.Args.Except(command2.Args, StringComparer.Create(CultureInfo.CurrentCulture, false));
-			return !difference.Any();
+			if (ReferenceEquals(null, obj)) return false;
+			if (ReferenceEquals(this, obj)) return true;
+			if (obj.GetType() != this.GetType()) return false;
+			return Equals((ConsoleCommand) obj);
 		}
 
-		public static bool operator !=(Command command1, Command command2)
+		public override int GetHashCode()
 		{
-			return !(command1 == command2);
+			return (CommandName != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(CommandName) : 0);
+		}
+	}
+
+	public class CommandComparer : IEqualityComparer<ConsoleCommand>
+	{
+		public bool Equals(ConsoleCommand x, ConsoleCommand y)
+		{
+			return x != null && x.Equals(y);
+		}
+
+		public int GetHashCode(ConsoleCommand obj)
+		{
+			return obj.GetHashCode();
 		}
 	}
 }

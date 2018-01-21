@@ -14,10 +14,11 @@ using Miku.Framework.Input;
 
 namespace Miku.Framework.Console
 {
-	public delegate string ConsoleCommand(string[] args);
-	
 	public class Console : DrawableGameComponent, IConsole
 	{
+		public ConsoleCommand Help { get; private set; }
+		public ConsoleCommand Cls { get; private set; }
+
 		private SpriteFont _font;
 
 		private ConsoleRenderManager _renderManager;
@@ -54,6 +55,8 @@ namespace Miku.Framework.Console
 			}
 		}
 
+		public Color FontColor { get; set; }
+
 		public float BackOpacity
 		{
 			get
@@ -78,8 +81,6 @@ namespace Miku.Framework.Console
 			}
 		}
 
-		public Color FontColor { get; set; }
-
 		public bool IsOpened
 
 		{
@@ -93,8 +94,9 @@ namespace Miku.Framework.Console
 				_inputManager.Enabled = value;
 			}
 		}
+
 		public void Toggle() => IsOpened = !IsOpened;
-		
+
 		public Console(Game game, SpriteFont font) : base(game)
 		{
 			Font = font;
@@ -102,18 +104,41 @@ namespace Miku.Framework.Console
 			_inputManager = new ConsoleInputManager(this);
 			_renderManager = new ConsoleRenderManager(_inputManager, game.GraphicsDevice) {Font = font};
 
-			//DrawOrder = int.MaxValue; // TODO: change it 
-
+			DrawOrder = int.MaxValue; // TODO: change it 
 			Game.Services.AddService(typeof(IConsole), this);
 			Game.Components.Add(this);
+
+			LoadDefaultCommands();
 		}
 
-		public bool AddCommand(string commandName, ConsoleCommand commandFunc)
+		private void LoadDefaultCommands()
 		{
-			if (_inputManager.Commands.ContainsKey(commandName.ToLower()))
+			Help = new ConsoleCommand("help", _ =>
+			{
+				_inputManager.Commands.ForEach(i =>
+				{
+					if (i.CommandHelp != null)
+						_inputManager.ConsoleHistory.Add($"- {i.CommandName} \"{i.CommandHelp}\"");
+				});
+				return null;
+			}, "guide to commands");
+
+			Help = new ConsoleCommand("cls", _ =>
+			{
+				Clear();
+				return null;
+			});
+		}
+
+		public bool AddCommand(ConsoleCommand command)
+		{
+			if (command == null)
+				throw new ArgumentNullException(nameof(command));
+
+			if (_inputManager.Commands.Contains(command, new CommandComparer()))
 				return false;
 
-			_inputManager.Commands.Add(commandName.ToLower(), commandFunc);
+			_inputManager.Commands.Add(command);
 			return true;
 		}
 
