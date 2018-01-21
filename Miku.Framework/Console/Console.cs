@@ -123,7 +123,7 @@ namespace Miku.Framework.Console
 				return null;
 			}, "guide to commands");
 
-			Help = new ConsoleCommand("cls", _ =>
+			Cls = new ConsoleCommand("cls", _ =>
 			{
 				Clear();
 				return null;

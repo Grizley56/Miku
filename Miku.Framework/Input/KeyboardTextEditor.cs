@@ -30,7 +30,7 @@ namespace Miku.Framework.Input
 		private readonly KeyboardHoldingTracer _leftArrowTracer;
 		private readonly KeyboardHoldingTracer _rightArrowTracer;
 
-		private TimeSpan _controlKeysRepeatSpeed = TimeSpan.FromMilliseconds(200);
+		private TimeSpan _controlKeysRepeatSpeed = TimeSpan.FromMilliseconds(50);
 
 		public KeyboardTextEditor(GameWindow window, Func<char, bool> knownCharacters = null) : base(window, knownCharacters)
 		{

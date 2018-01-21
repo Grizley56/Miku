@@ -15,14 +15,17 @@ namespace Miku.Framework.Console
 
 		private Texture2D _texture;
 		private SpriteBatch _spriteBatch;
+
 		internal SpriteFont Font { get; set; }
 
 		private readonly GraphicsDevice _graphicDevice;
 		public ConsoleInputManager InputTarget { get; }
-		public Rectangle Bounds => _graphicDevice.Viewport.Bounds;
-		public int Height => (int)Math.Max(_graphicDevice.Viewport.Bounds.Height / 2.5f, 200f);
+		public Rectangle ViewportBounds => _graphicDevice.Viewport.Bounds;
 
-		public Color BackColor { get; set; } = Color.DimGray;
+		public Rectangle ConsoleBounds => new Rectangle(0, 0, ViewportBounds.Width,
+			(int) Math.Max(_graphicDevice.Viewport.Bounds.Height / 2.5f, 200f));
+
+		public Color BackColor { get; set; } = Color.White;
 
 		public float BackOpacity { get; set; } = 0.5f;
 		public float FontOpacity { get; set; } = 1f;
@@ -36,17 +39,34 @@ namespace Miku.Framework.Console
 			_spriteBatch = new SpriteBatch(graphicDevice);
 
 			_texture.SetData(new byte[] { 255, 255, 255, 255});
+
+			_historyField = new ConsoleField(() => new Rectangle(ConsoleBounds.X, ConsoleBounds.Y, ConsoleBounds.Width, 
+				ConsoleBounds.Height - (int)_inputFieldSize.Y - (int)_inputFieldPadding.Y*2));
+			_historyField.Padding = new Point(5, 5);
+			_historyField.BackColor = Color.Black;
+			_historyField.BackOpacity = 0.5f;
+
+			_inputField = new ConsoleField(() => new Rectangle(ConsoleBounds.X, ConsoleBounds.Y + _historyField.Bounds.Height + 12,
+				ConsoleBounds.Width,
+				Font.LineSpacing + 5));
+			_inputField.Padding = new Point(5, 0);
+			_inputField.BackColor = Color.Black;
+			_inputField.BackOpacity = 0.5f;
 		}
 
+		private ConsoleField _historyField;
+		private ConsoleField _inputField;
 
 		private TimeSpan _blinkShowtime = TimeSpan.Zero;
 		private TimeSpan _blinkSpeed = TimeSpan.FromSeconds(0.5f);
-		private bool CursorVisiblePhase = true;
+		private bool _cursorVisiblePhase = true;
 
-
+		private Rectangle _historyBounds => new Rectangle();
+		
 		private Vector2 _inputFieldPadding = new Vector2(5);
-		private Vector2 _inputFontPadding = new Vector2(3);
-		private Vector2 _inputFieldSize => new Vector2(Bounds.Width - _inputFieldPadding.X*2, Font.LineSpacing + 5);
+		private Vector2 _inputFontPadding = new Vector2(3, 5);
+		private Vector2 _inputFieldSize => new Vector2(ViewportBounds.Width - _inputFieldPadding.X*2, Font.LineSpacing + 5);
+
 		private Color _inputFieldColor = Color.Black;
 		private float _inputFieldOpacity = 0.5f;
 
@@ -56,7 +76,7 @@ namespace Miku.Framework.Console
 
 			if (_blinkShowtime >= _blinkSpeed)
 			{
-				CursorVisiblePhase = !CursorVisiblePhase;
+				_cursorVisiblePhase = !_cursorVisiblePhase;
 				_blinkShowtime = TimeSpan.Zero;
 			}
 
@@ -72,25 +92,24 @@ namespace Miku.Framework.Console
 			//_graphicDevice.SetRenderTarget(null);
 
 			_spriteBatch.Begin();
-			_spriteBatch.Draw(_texture, new Rectangle(0, 0, Bounds.Width, Height), _texture.Bounds, BackColor * BackOpacity);
 
+			_spriteBatch.Draw(_texture, ConsoleBounds, BackColor * BackOpacity); // BG
 
-			_spriteBatch.Draw(_texture, new Rectangle((int) _inputFieldPadding.X, (int) _inputFieldPadding.Y,
-				(int) _inputFieldSize.X,
-				Height - 50), _inputFieldColor * _inputFieldOpacity);
+			_spriteBatch.Draw(_texture, _historyField.Bounds, _historyField.BackColor * _historyField.BackOpacity); // BG HISTORY
 
-			Rectangle inputFieldBounds = new Rectangle((int) _inputFieldPadding.X,
-				Height - (int) _inputFieldSize.Y - (int) _inputFieldPadding.Y,
-				(int) _inputFieldSize.X, (int) _inputFieldSize.Y);
+			_spriteBatch.Draw(_texture, _inputField.Bounds, _inputField.BackColor * _inputField.BackOpacity); // BG INPUT
 
-			_spriteBatch.Draw(_texture, inputFieldBounds, _inputFieldColor * _inputFieldOpacity);
+			_spriteBatch.DrawString(Font, InputTarget.CurrentInput, 
+				_inputField.Bounds.Location.ToVector2() + _inputFontPadding, Color.White * FontOpacity);
 
-			_spriteBatch.DrawString(Font, InputTarget.CurrentInput, new Vector2(_inputFontPadding.X + _inputFieldPadding.X, inputFieldBounds.Y + _inputFieldPadding.Y), Color.White * FontOpacity);
 			Vector2 size = Font.MeasureString(InputTarget.CurrentInput.Substring(0, InputTarget.CursorPosition));
 
-
-			if(CursorVisiblePhase)
-				_spriteBatch.DrawString(Font, "|", new Vector2(_inputFieldPadding.X + size.X + 1, inputFieldBounds.Y + _inputFieldPadding.Y), Color.White);
+			if (_cursorVisiblePhase)
+				_spriteBatch.DrawString(
+				Font, 
+				"|", 
+				new Vector2(_inputField.Bounds.X + size.X - 1, _inputField.Bounds.Y + _inputFieldPadding.Y), 
+				Color.White);
 
 
 			Vector2 startOffset = new Vector2(10, 10); // TODO: padding
@@ -102,10 +121,7 @@ namespace Miku.Framework.Console
 				_spriteBatch.DrawString(Font, entry, offset, Color.White * FontOpacity);
 			}
 
-
 			_spriteBatch.End();
-			
-
 		}
 
 

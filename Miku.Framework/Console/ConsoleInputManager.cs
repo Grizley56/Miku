@@ -18,7 +18,7 @@ namespace Miku.Framework.Console
 		internal List<ConsoleCommand> Commands = new List<ConsoleCommand>();
 
 		public List<string> ConsoleHistory { get; } = new List<string>();
-		public string CommandNotFoundMessage { get; set; } = "Unknow command";
+		public string CommandNotFoundMessage { get; set; } = "Unknown command";
 
 		public bool Enabled
 		{
