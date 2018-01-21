@@ -51,6 +51,7 @@
     <Compile Include="Console\ConsoleInputManager.cs" />
     <Compile Include="Console\ConsoleRenderManager.cs" />
     <Compile Include="Console\IConsole.cs" />
+    <Compile Include="Debug\FpsCounterComponent.cs" />
     <Compile Include="Input\InputCursorPosition.cs" />
     <Compile Include="Input\KeyboardHoldingTracer.cs" />
     <Compile Include="Input\KeyboardTextEditor.cs" />

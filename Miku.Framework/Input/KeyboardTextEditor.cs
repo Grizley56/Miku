@@ -26,16 +26,17 @@ namespace Miku.Framework.Input
 				_rightArrowTracer.TimeBetweenRepeat = value;
 			}
 		}
+		public bool CursorMoving => _leftArrowTracer.IsHolded || _rightArrowTracer.IsHolded;
 
 		private readonly KeyboardHoldingTracer _leftArrowTracer;
 		private readonly KeyboardHoldingTracer _rightArrowTracer;
 
-		private TimeSpan _controlKeysRepeatSpeed = TimeSpan.FromMilliseconds(50);
+		private TimeSpan _controlKeysRepeatSpeed = TimeSpan.FromMilliseconds(35);
 
 		public KeyboardTextEditor(GameWindow window, Func<char, bool> knownCharacters = null) : base(window, knownCharacters)
 		{
-			_leftArrowTracer = new KeyboardHoldingTracer(Keys.Left, TimeSpan.FromSeconds(0.5f), ControlKeysRepeatSpeed);
-			_rightArrowTracer = new KeyboardHoldingTracer(Keys.Right, TimeSpan.FromSeconds(0.5f), ControlKeysRepeatSpeed);
+			_leftArrowTracer = new KeyboardHoldingTracer(Keys.Left, TimeSpan.FromSeconds(0.3f), ControlKeysRepeatSpeed);
+			_rightArrowTracer = new KeyboardHoldingTracer(Keys.Right, TimeSpan.FromSeconds(0.3f), ControlKeysRepeatSpeed);
 		}
 
 

@@ -38,14 +38,9 @@ namespace Miku.Framework.Console
 		{
 			if (getBounds == null)
 				throw new ArgumentNullException(nameof(getBounds));
-
+			
 			_getBounds = getBounds;
 		}
-
-
 		
-
-
-
 	}
 }

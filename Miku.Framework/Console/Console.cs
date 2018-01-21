@@ -23,6 +23,7 @@ namespace Miku.Framework.Console
 
 		private ConsoleRenderManager _renderManager;
 		private ConsoleInputManager _inputManager;
+		private SpriteBatch _spriteBatch;
 
 		private bool _isOpened;
 
@@ -103,8 +104,9 @@ namespace Miku.Framework.Console
 
 			_inputManager = new ConsoleInputManager(this);
 			_renderManager = new ConsoleRenderManager(_inputManager, game.GraphicsDevice) {Font = font};
+			_spriteBatch = Game.Services.GetService<SpriteBatch>();
 
-			DrawOrder = int.MaxValue; // TODO: change it 
+			DrawOrder = int.MaxValue - 1; // TODO: change it 
 			Game.Services.AddService(typeof(IConsole), this);
 			Game.Components.Add(this);
 
@@ -147,7 +149,7 @@ namespace Miku.Framework.Console
 			if (!IsOpened)
 				return;
 
-			_renderManager.Draw(gameTime);
+			_renderManager.Draw(gameTime, _spriteBatch);
 			base.Draw(gameTime);
 		}
 

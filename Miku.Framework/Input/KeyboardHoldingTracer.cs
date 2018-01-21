@@ -41,6 +41,7 @@ namespace Miku.Framework.Input
 				_requireElapsedTime = value;
 			}
 		}
+		public bool IsHolded => KeyboardComponent.KeyHolded(_key, RequireElapsedTime);
 
 		internal KeyboardHoldingTracer(Keys key, TimeSpan requireElapsedTime, TimeSpan timeBetweenRepeat)
 		{
@@ -61,6 +62,13 @@ namespace Miku.Framework.Input
 			if (KeyboardComponent.KeyHolded(_key, RequireElapsedTime) &&
 			    KeyboardComponent.TotalTimeKeyPressed[_key] >= _tempTime)
 			{
+				// _tempTime == TimeBetweenRepeat its like 
+				// KeyHoldedFirstTriggering possibly variable
+				// If we do not do it we notice undesirable triggering
+				// (RequireElapsedTime.Miliseconds / TimeBetweenRepeat.Miliseconds) times 
+				if (_tempTime == TimeBetweenRepeat)
+					_tempTime += RequireElapsedTime;
+
 				_tempTime += TimeBetweenRepeat;
 				return true;
 			}
