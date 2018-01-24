@@ -29,5 +29,7 @@ namespace Miku.Framework
 		{
 			return new string(source.ToCharArray().Reverse().ToArray());
 		}
+
+		internal static int LinesCount(this string source) => source.Count(i => i == '\n') + 1;
 	}
 }

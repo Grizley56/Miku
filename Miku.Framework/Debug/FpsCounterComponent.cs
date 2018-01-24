@@ -22,6 +22,8 @@ namespace Miku.Framework.Debug
 				UpdateFontPosition();
 			}
 		}
+
+		// ReSharper disable once InconsistentNaming
 		public int FPS
 		{
 			get { return _fps; }
@@ -69,7 +71,7 @@ namespace Miku.Framework.Debug
 
 			if (_tmpTimer >= OneSecond)
 			{
-				_tmpTimer = TimeSpan.Zero; // _tmpTimer - OneSecond;
+				_tmpTimer = TimeSpan.Zero;
 				FPS = _framesCounter;
 				_framesCounter = 0;
 			}

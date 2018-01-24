@@ -56,8 +56,6 @@ namespace Miku.Framework.Console
 			}
 		}
 
-		public Color FontColor { get; set; }
-
 		public float BackOpacity
 		{
 			get
@@ -70,15 +68,21 @@ namespace Miku.Framework.Console
 			}
 		}
 
-		public float FontOpacity
+		public Color InputFontColor
+		{
+			get { return _renderManager.InputTextColor; }
+			set { _renderManager.InputTextColor = value; } 
+		}
+
+		public float InputFontOpacity
 		{
 			get
 			{
-				return _renderManager.FontOpacity;
+				return _renderManager.InputFontOpacity;
 			}
 			set
 			{
-				_renderManager.FontOpacity = value;
+				_renderManager.InputFontOpacity = value;
 			}
 		}
 
@@ -120,7 +124,7 @@ namespace Miku.Framework.Console
 				_inputManager.Commands.ForEach(i =>
 				{
 					if (i.CommandHelp != null)
-						_inputManager.ConsoleHistory.Add($"- {i.CommandName} \"{i.CommandHelp}\"");
+						_inputManager.ConsoleHistory.Log(new ConsoleEntry($"- {i.CommandName} \"{i.CommandHelp}\"", Color.Yellow, false));
 				});
 				return null;
 			}, "guide to commands");
@@ -130,6 +134,16 @@ namespace Miku.Framework.Console
 				Clear();
 				return null;
 			});
+		}
+
+		public void Log(string message)
+		{
+			_inputManager.ConsoleHistory.Log(new ConsoleEntry(message, Color.White));
+		}
+
+		public void Log(ConsoleEntry entry)
+		{
+			_inputManager.ConsoleHistory.Log(entry);
 		}
 
 		public bool AddCommand(ConsoleCommand command)
@@ -162,6 +176,7 @@ namespace Miku.Framework.Console
 				return;
 
 			_inputManager.Update(gameTime);
+			_renderManager.Update(gameTime);
 		}
 
 		public void Clear()

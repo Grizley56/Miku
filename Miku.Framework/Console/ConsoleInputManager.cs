@@ -17,7 +17,7 @@ namespace Miku.Framework.Console
 		internal KeyboardTextEditor TextEditor;
 		internal List<ConsoleCommand> Commands = new List<ConsoleCommand>();
 
-		public List<string> ConsoleHistory { get; } = new List<string>();
+		public ConsoleHistory ConsoleHistory { get; } = new ConsoleHistory();
 		public string CommandNotFoundMessage { get; set; } = "Unknown command";
 
 		public bool Enabled
@@ -118,13 +118,13 @@ namespace Miku.Framework.Console
 
 			if (command != null)
 			{
-				string result = command.Function?.Invoke(commandInfo.Args);
-				ConsoleHistory.Add(e.EnteredText);
+				ConsoleEntry result = command.Function?.Invoke(commandInfo.Args);
+				ConsoleHistory.Log(new ConsoleEntry(e.EnteredText, Color.White));
 				if (result != null)
-					ConsoleHistory.Add("- " + result);
+					ConsoleHistory.Log(new ConsoleEntry("- " + result, Color.White, false));
 			}
 			else
-				ConsoleHistory.Add(GenerateNotFoundMessage(commandInfo.CommandName));
+				ConsoleHistory.Log(new ConsoleEntry(GenerateNotFoundMessage(commandInfo.CommandName), Color.Red));
 		}
 		private string GenerateNotFoundMessage(string command) =>  $"{CommandNotFoundMessage} \"{command}\"";
 	}

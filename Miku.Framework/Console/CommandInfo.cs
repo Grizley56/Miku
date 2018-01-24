@@ -21,9 +21,7 @@ namespace Miku.Framework.Console
 			Time = time;
 			Args = args ?? new string[0];
 		}
-
-
-
+		
 		public override string ToString() => _sourceText;
 
 		public static CommandInfo FromString(string text)

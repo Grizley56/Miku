@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Miku.Framework.Console
 {
-	public delegate string CommandFunc(string[] args);
+	public delegate ConsoleEntry CommandFunc(string[] args);
 
 	public class ConsoleCommand: IEquatable<ConsoleCommand>
 	{
