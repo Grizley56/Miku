@@ -121,7 +121,7 @@ namespace Miku.Framework.Console
 				ConsoleEntry result = command.Function?.Invoke(commandInfo.Args);
 				ConsoleHistory.Log(new ConsoleEntry(e.EnteredText, Color.White));
 				if (result != null)
-					ConsoleHistory.Log(new ConsoleEntry("- " + result, Color.White, false));
+					ConsoleHistory.Log(new ConsoleEntry("- " + result.Data, result.TextColor * result.TextOpacity, false));
 			}
 			else
 				ConsoleHistory.Log(new ConsoleEntry(GenerateNotFoundMessage(commandInfo.CommandName), Color.Red));

@@ -6,16 +6,24 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Miku.Framework.Drawing;
 
 namespace Miku.Framework.Console
 {
-	class ConsoleHistoryRenderer
+	internal class ConsoleHistoryRenderer
 	{
 		public SpriteFont Font { get; set; }
 		public ConsoleHistory Histroy { get; }
 
+		public int ScrollBarWidth { get; set; }
+		public Point ScrollBarPadding { get; set; } = new Point(0);
+		public Color ScrollBarColor { get; set; } = Color.White;
+		public float ScrollBarOpacity { get; set; } = 1f;
+		public Color ScrollStripColor { get; set; } = Color.White;
+		public float ScrollStripOpacity { get; set; } = 1f;
+		public bool ScrollBarVisible { get; set; }
+
 		//TODO: property for choose DateTime format (entry time)
-		//TODO: scroll bar
 
 		public float ScrollDelta
 		{
@@ -25,10 +33,11 @@ namespace Miku.Framework.Console
 
 		private float _scrollDelta;
 
-		public ConsoleHistoryRenderer(ConsoleHistory history, SpriteFont font)
+		public ConsoleHistoryRenderer(ConsoleHistory history, SpriteFont font, bool showScrolling = true)
 		{
 			Histroy = history;
 			Font = font;
+			ScrollBarVisible = showScrolling;
 
 			history.HistoryCleared += (_, __) => ScrollDelta = 0;
 			history.EntryAdded += (_, __) => ScrollDelta = 0;
@@ -63,7 +72,8 @@ namespace Miku.Framework.Console
 			batch.Begin();
 
 			//One output entry can be bigger than aviable width-space, so split it to a few lines
-			ConsoleEntry[] dividedToLines = GetForBounds(Font, bounds);
+			ConsoleEntry[] dividedToLines = GetForBounds(Font, new Rectangle(bounds.Location, 
+				new Point(bounds.Size.X - ScrollBarWidth - ScrollBarPadding.X - 5, bounds.Size.Y - ScrollBarPadding.Y)));
 
 			int linesToDraw = Math.Min(bounds.Height / Font.LineSpacing, dividedToLines.Length);
 
@@ -112,6 +122,28 @@ namespace Miku.Framework.Console
 				offset.Y += Font.LineSpacing;
 			}
 
+			if (ScrollBarVisible)
+			{
+				Rectangle scrollBarBounds = new Rectangle(bounds.Size.X - ScrollBarWidth - ScrollBarPadding.X, ScrollBarPadding.Y,
+					ScrollBarWidth, bounds.Height - ScrollBarPadding.Y * 2);
+
+				batch.DrawRect(scrollBarBounds, ScrollBarColor * ScrollBarOpacity);
+
+				int stripHeight = (int)(linesToDraw / (float)totalLines * scrollBarBounds.Height);
+
+				//not enought just compare equal, because possible loss of precision
+				if (Math.Abs(stripHeight - scrollBarBounds.Height) > 0.01f)
+				{
+					int stripOffset = (int)(scrollBarBounds.Height / (float)totalLines * linesScrolled);
+					Rectangle stripBounds = new Rectangle(scrollBarBounds.X,
+						scrollBarBounds.Height - stripHeight - stripOffset + ScrollBarPadding.Y,
+						scrollBarBounds.Width, stripHeight);
+
+					batch.DrawRect(stripBounds, ScrollStripColor * ScrollStripOpacity);
+				}
+			}
+
+
 			batch.End();
 		}
 
@@ -152,7 +184,6 @@ namespace Miku.Framework.Console
 			{
 				buffer.Append(splittedByWords[wordsInBounds++] + ' ');
 			} while (font.MeasureString(string.Join(" ", splittedByWords, 0, wordsInBounds + 1)).X < maxWidth);
-
 
 			buffer.Append('\n');
 

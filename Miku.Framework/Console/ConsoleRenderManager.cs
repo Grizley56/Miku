@@ -6,13 +6,12 @@ using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Miku.Framework.Input;
-
+using Miku.Framework.Drawing;
 
 namespace Miku.Framework.Console
 {
 	internal class ConsoleRenderManager
 	{
-		private Texture2D _solidColorTexture;
 		private readonly GraphicsDevice _graphicDevice;
 
 		private ConsoleField _historyField;
@@ -61,9 +60,15 @@ namespace Miku.Framework.Console
 		{
 			_graphicDevice = graphicDevice;
 			InputTarget = inputManager;
-			HistoryRenderer = new ConsoleHistoryRenderer(InputTarget.ConsoleHistory, Font);
-			_solidColorTexture = new Texture2D(graphicDevice, 1, 1);
-			_solidColorTexture.SetData(new byte[] { 255, 255, 255, 255});
+
+			HistoryRenderer = new ConsoleHistoryRenderer(InputTarget.ConsoleHistory, Font)
+			{
+				ScrollBarPadding = new Point(1, 1),
+				ScrollBarWidth = 5,
+				ScrollBarOpacity = 0.5f,
+				ScrollStripOpacity = 0.6f
+			};
+
 			InitializeFacade();
 		}
 
@@ -116,12 +121,12 @@ namespace Miku.Framework.Console
 			////////////on game-rendered background//////////////////
 			/////////////////////////////////////////////////////////
 			spriteBatch.Begin();
+			
+			spriteBatch.DrawRect(ConsoleBounds, BackColor * BackOpacity); // BG
 
-			spriteBatch.Draw(_solidColorTexture, ConsoleBounds, BackColor * BackOpacity); // BG
+			spriteBatch.DrawRect(_historyField.Bounds, _historyField.BackColor * _historyField.BackOpacity); // BG HISTORY
 
-			spriteBatch.Draw(_solidColorTexture, _historyField.Bounds, _historyField.BackColor * _historyField.BackOpacity); // BG HISTORY
-
-			spriteBatch.Draw(_solidColorTexture, _inputField.Bounds, _inputField.BackColor * _inputField.BackOpacity); // BG INPUT
+			spriteBatch.DrawRect(_inputField.Bounds, _inputField.BackColor * _inputField.BackOpacity); // BG INPUT
 
 			spriteBatch.DrawString(Font, InputTarget.CurrentInput,
 				_inputField.Bounds.Location.ToVector2() + _inputTextPadding, InputTextColor * InputFontOpacity); // INPUT TEXT
