@@ -9,11 +9,32 @@ using Miku.Framework.Console;
 
 namespace Miku.Framework.Input
 {
+	public delegate string ClipboardTextGetter();
+
 	public class KeyboardTextEditor : KeyboardTextReader
 	{
 		public event EventHandler<TextEnteredEventArgs> TextEntered;
 		public event EventHandler<CursorPositionChangedEventArgs> CursorPositionChanged;
-		public int CursorPosition { get; private set; }
+
+		public ClipboardTextGetter ClipboardPasting { get; set; }
+		public event EventHandler<ClipboardTextEventArgs> ClipboardCutting;
+		public event EventHandler<ClipboardTextEventArgs> ClipboardCopying;
+
+		public int CursorPosition
+		{
+			get { return _cursorPosition; }
+			private set
+			{
+				if (value > _buffer.Length || value < 0)
+					throw new ArgumentOutOfRangeException(nameof(CursorPosition));
+				if (value == _cursorPosition)
+					return;
+
+				_cursorPosition = value;
+				OnCursorPositionChanged();
+			}
+		}
+
 		public TimeSpan ControlKeysRepeatSpeed
 		{
 			get { return _controlKeysRepeatSpeed; }
@@ -29,12 +50,38 @@ namespace Miku.Framework.Input
 		}
 		public bool CursorMoving => _leftArrowTracer.IsHolded || _rightArrowTracer.IsHolded;
 
+		public Point HighlightRange
+		{
+			get { return _highlightRange; }
+			set
+			{
+				if (value.X > value.Y)
+					throw new ArgumentException("The beginning can not be more than the end of highlight");
+				if (value.X < 0 || value.Y < 0)
+					throw new ArgumentException("The beginning and the end of highlight can not be negative");
+
+				_highlightRange = value;
+			}
+		}
+		public bool IsTextHighlighted => HighlightRange.X != HighlightRange.Y;
+		public string HighlightedText => IsTextHighlighted
+			? Text.Substring(HighlightRange.X, HighlightRange.Y - HighlightRange.X)
+			: String.Empty;
+
 		private readonly KeyboardHoldingTracer _leftArrowTracer;
 		private readonly KeyboardHoldingTracer _rightArrowTracer;
 		private readonly KeyboardHoldingTracer _deleteTracer;
 
 		private TimeSpan _controlKeysRepeatSpeed = TimeSpan.FromMilliseconds(35);
 		private readonly char[] _sectionSplitSymbols =  {' ', ',', '.'};
+		private Point _highlightRange;
+		private int _cursorPosition;
+
+		private bool IsErasingCharacter(char character) => character == '\b' || character == '\u007f' ||
+		                                                   character == '\u0010' || character == '\u0000';
+
+		public void HighlightAllText() => HighlightRange = new Point(0, _buffer.Length);
+		public void ResetHighlighting() => _highlightRange = new Point(0);
 
 		public KeyboardTextEditor(GameWindow window, Func<char, bool> knownCharacters = null) : base(window, knownCharacters)
 		{
@@ -43,39 +90,101 @@ namespace Miku.Framework.Input
 			_deleteTracer = new KeyboardHoldingTracer(Keys.Delete, TimeSpan.FromSeconds(0.3f), ControlKeysRepeatSpeed);
 		}
 
-
 		protected override void WriteControlToBuffer(char control)
 		{
-			int count;
-			switch (control)
+			if (IsErasingCharacter(control))
 			{
-				case '\r': // Enter
-					OnTextEntered(new TextEnteredEventArgs(Text));
-					Clear();
-					CursorPosition = 0;
-					goto default;
-				case '\b': // backspace
-					if (CursorPosition == 0)
-						break;
-					RemoveTextFromBuffer(--CursorPosition, 1);
-					goto default;
-				case '\u007f': // Ctrl + backspace
-					int startIndex = GetIndexOfPreviousSection(_buffer.ToString(), _sectionSplitSymbols, CursorPosition);
-					count = CursorPosition - startIndex;
-					RemoveTextFromBuffer(startIndex, count);
-					CursorPosition -= count;
-					goto default;
-				case '\u0000': // Del
-					RemoveTextFromBuffer(CursorPosition, 1);
-					break;
-				case '\u0010': // Ctrl + Del
-					int endIndex = GetIndexOfNextSection(_buffer.ToString(), _sectionSplitSymbols, CursorPosition);
-					count = endIndex - CursorPosition;
-					RemoveTextFromBuffer(CursorPosition, count);
-					break;
-				default:
-					OnCursorPositionChanged();
-					break;
+				int startIndex = 0;
+				int count = 0;
+
+				if (IsTextHighlighted)
+				{
+					switch (control)
+					{																																															////////////////////
+						case '\b':																																									//		Backspace		//
+						case '\u0000':																																							//			Delete		//
+							startIndex = HighlightRange.X;                                                            //								//
+							count = HighlightRange.Y - HighlightRange.X;                                              //								//
+							CursorPosition = HighlightRange.X;                                                        //								//
+							break;																																										////////////////////
+						case '\u007f':																																						  // Ctrl+Backspace //
+							startIndex = GetIndexOfPreviousSection(Text, _sectionSplitSymbols, HighlightRange.X);			//								//
+							count = HighlightRange.Y - startIndex;																										//								//
+							CursorPosition = startIndex;																															//								//
+							break;																																										////////////////////
+						case '\u0010':																																							//	 Ctrl+Delete  //
+							startIndex = HighlightRange.X;																														//								//
+							count = GetIndexOfNextSection(Text, _sectionSplitSymbols, HighlightRange.Y) - startIndex; //								//
+							CursorPosition = startIndex;                                                              //								//
+							break;                                                                                    ////////////////////
+					}
+					ResetHighlighting();
+				}
+				else
+				{
+					switch (control)
+					{
+						case '\b':
+							count = CursorPosition == 0 ? 0 : 1;
+							startIndex = CursorPosition == 0 ? 0 : --CursorPosition;
+							break;
+						case '\u0000':
+							startIndex = CursorPosition;
+							count = CursorPosition == _buffer.Length ? 0 : 1;
+							break;
+						case '\u007f':
+							startIndex = GetIndexOfPreviousSection(Text, _sectionSplitSymbols, CursorPosition);
+							count = CursorPosition - startIndex;
+							CursorPosition = startIndex;
+							break;
+						case '\u0010':
+							startIndex = CursorPosition;
+							count = GetIndexOfNextSection(Text, _sectionSplitSymbols, CursorPosition) - startIndex;
+							break;
+					}
+				}
+				RemoveTextFromBuffer(startIndex, count);
+				return;
+			}
+
+			switch (control)
+			{                                                                                       ////////////////////
+				case '\r':																																						//			Enter			//
+					OnTextEntered(new TextEnteredEventArgs(Text));																			//								//
+					Clear();                                                                            //								//
+																																															//								//
+					CursorPosition = 0;                                                                 //								//
+					break;                                                                              ////////////////////
+				case '\u0001':                                                                        //		Ctrl + A		//
+					HighlightAllText();                                                                 //								//
+					CursorPosition = _buffer.Length;                                                    //								//
+					break;                                                                              ////////////////////
+				case '\u0016':																																				//		Ctrl + V		//
+					if (ClipboardPasting != null)                                                       //								//
+					{                                                                                   //								//
+						string pastingText = ClipboardPasting.Invoke();                                   //								//
+						if (IsTextHighlighted)                                                            //								//
+						{                                                                                 //								//
+							RemoveTextFromBuffer(HighlightRange.X, HighlightRange.Y - HighlightRange.X);    //								//
+							CursorPosition = HighlightRange.X;                                              //								//
+							ResetHighlighting();                                                            //								//
+						}                                                                                 //								//
+						WriteTextToBuffer(pastingText);                                                   //								//
+					}                                                                                   //								//
+					break;                                                                              ////////////////////
+				case '\u0003': // ctrl + c																														//		Ctrl + C		//
+					if (IsTextHighlighted)                                                              //								//
+						OnClipboardCopying(new ClipboardTextEventArgs(HighlightedText));                  //								//
+					break;                                                                              ////////////////////
+				case '\u0018': // ctrl + x																														//		Ctrl + X		//
+					if (IsTextHighlighted)                                                              //								//
+					{                                                                                   //								//
+						OnClipboardCutting(new ClipboardTextEventArgs(HighlightedText));                  //								//
+						RemoveTextFromBuffer(HighlightRange.X, HighlightRange.Y - HighlightRange.X);      //								//
+						CursorPosition = HighlightRange.X;                                                //								//
+						ResetHighlighting();                                                              //								//
+					}                                                                                   //								//
+					break;                                                                              ////////////////////
 			}
 		}
 
@@ -93,15 +202,19 @@ namespace Miku.Framework.Input
 
 		protected override void WriteTextToBuffer(char chr)
 		{
-			_buffer.Insert(CursorPosition++, chr);
-			OnCursorPositionChanged();
+			WriteTextToBuffer(chr.ToString());
 		}
 
 		protected override void WriteTextToBuffer(string str)
 		{
+			if (IsTextHighlighted)
+			{
+				CursorPosition = HighlightRange.X;
+				RemoveTextFromBuffer(HighlightRange.X, HighlightRange.Y - HighlightRange.X);
+				ResetHighlighting();
+			}
 			_buffer.Insert(CursorPosition, str);
 			CursorPosition += str.Length;
-			OnCursorPositionChanged();
 		}
 
 		public void SetCursorTo(InputCursorPosition position)
@@ -110,17 +223,17 @@ namespace Miku.Framework.Input
 			{
 				case InputCursorPosition.Begin:
 					CursorPosition = 0;
-					goto default;
+					break;
 				case InputCursorPosition.Center:
 					CursorPosition = _buffer.Length == 0 ? 0 : _buffer.Length / 2;
-					goto default;
+					break;
 				case InputCursorPosition.End:
 					CursorPosition = _buffer.Length;
-					goto default;
-				default:
-					OnCursorPositionChanged();
 					break;
+				default:
+					throw new ArgumentException(nameof(position));
 			}
+			ResetHighlighting();
 		}
 
 		public override void Update(GameTime gameTime)
@@ -132,24 +245,63 @@ namespace Miku.Framework.Input
 
 			if (_leftArrowTracer.Check() && CursorPosition > 0)
 			{
+				int oldCursorPosition = CursorPosition;
+
 				if (KeyboardComponent.IsKeyDown(Keys.LeftControl) || KeyboardComponent.IsKeyDown(Keys.RightControl))
-					CursorPosition = GetIndexOfPreviousSection(_buffer.ToString(), _sectionSplitSymbols, CursorPosition);
+					CursorPosition = GetIndexOfPreviousSection(Text, _sectionSplitSymbols, CursorPosition);
 				else
 					CursorPosition--;
 
-				OnCursorPositionChanged();
+				if (KeyboardComponent.IsKeyDown(Keys.LeftShift) || KeyboardComponent.IsKeyDown(Keys.RightShift))
+				{
+					if (IsTextHighlighted)
+					{
+						int highlightedCount = oldCursorPosition - CursorPosition;
+						for (int i = 0; i < highlightedCount; i++)
+							if (CursorPosition < HighlightRange.X)
+								HighlightRange -= new Point(1, 0);
+							else
+								HighlightRange -= new Point(0, 1);
+					}
+					else
+					{
+						HighlightRange = new Point(CursorPosition, oldCursorPosition);
+					}
+				}
+				else
+					ResetHighlighting();
 			}
 
 			if (_rightArrowTracer.Check() && CursorPosition < _buffer.Length)
 			{
+				int oldCursorPosition = CursorPosition;
+
 				if (KeyboardComponent.IsKeyDown(Keys.LeftControl) || KeyboardComponent.IsKeyDown(Keys.RightControl))
-					CursorPosition = GetIndexOfNextSection(_buffer.ToString(), _sectionSplitSymbols, CursorPosition);
+					CursorPosition = GetIndexOfNextSection(Text, _sectionSplitSymbols, CursorPosition);
 				else
 					CursorPosition++;
-				OnCursorPositionChanged();
+
+				if (KeyboardComponent.IsKeyDown(Keys.LeftShift) || KeyboardComponent.IsKeyDown(Keys.RightShift))
+				{
+					if (IsTextHighlighted)
+					{
+						int highlightedCount = CursorPosition - oldCursorPosition;
+						for (int i = 0; i < highlightedCount; i++)
+							if (HighlightRange.Y >= CursorPosition)
+								HighlightRange += new Point(1, 0);
+							else
+								HighlightRange += new Point(0, 1);
+					}
+					else
+					{
+						HighlightRange = new Point(oldCursorPosition, CursorPosition);
+					}
+				}
+				else
+					ResetHighlighting();
 			}
 
-			if (_deleteTracer.Check() && CursorPosition < _buffer.Length)
+			if (_deleteTracer.Check())
 			{
 				// I send unused range of Unicode symbols
 				// for reduce count of code (for example \u0010 is DLE symbol (Data link escape))
@@ -195,6 +347,16 @@ namespace Miku.Framework.Input
 		protected virtual void OnTextEntered(TextEnteredEventArgs e)
 		{
 			TextEntered?.Invoke(this, e);
+		}
+
+		protected virtual void OnClipboardCutting(ClipboardTextEventArgs e)
+		{
+			ClipboardCutting?.Invoke(this, e);
+		}
+
+		protected virtual void OnClipboardCopying(ClipboardTextEventArgs e)
+		{
+			ClipboardCopying?.Invoke(this, e);
 		}
 	}
 }

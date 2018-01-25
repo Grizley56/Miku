@@ -58,6 +58,7 @@
     <Compile Include="Console\ScrollKind.cs" />
     <Compile Include="Debug\FpsCounterComponent.cs" />
     <Compile Include="Drawing\SpriteBatchExtension.cs" />
+    <Compile Include="Input\ClipboardTextEventArgs.cs" />
     <Compile Include="Input\CursorPositionChangedEventArgs.cs" />
     <Compile Include="Input\InputCursorPosition.cs" />
     <Compile Include="Input\KeyboardHoldingTracer.cs" />

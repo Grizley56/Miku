@@ -22,8 +22,9 @@ namespace Miku.Framework.Console
 		private TimeSpan _blinkSpeed = TimeSpan.FromSeconds(0.5f);
 		private bool _cursorVisiblePhase = true;
 
-		private Vector2 _inputTextPadding = new Vector2(3, 5);
-		private Vector2 _historyTextPadding = new Vector2(5, 5);
+		private Point _inputTextPadding = new Point(3, 5);
+		private Point _historyTextPadding = new Point(5, 5);
+		private Point _highlightingPadding = new Point(0, 2);
 
 		private SpriteFont _font;
 
@@ -55,6 +56,8 @@ namespace Miku.Framework.Console
 
 		public float InputFontOpacity { get; set; } = 1f;
 		public Color InputTextColor { get; set; } = Color.White;
+		public Color HighlightColor { get; set; } = Color.White * 0.5f;
+		public Color CursorColor { get; set; } = Color.White;
 
 		public ConsoleRenderManager(ConsoleInputManager inputManager, GraphicsDevice graphicDevice)
 		{
@@ -77,8 +80,8 @@ namespace Miku.Framework.Console
 		private void InitializeFacade()
 		{
 			_inputField = new ConsoleField(() => new Rectangle(ConsoleBounds.X,
-				ConsoleBounds.Height - Font.LineSpacing - (int)_inputTextPadding.Y * 2, ConsoleBounds.Width,
-				Font.LineSpacing + (int)_inputTextPadding.Y * 2))
+				ConsoleBounds.Height - Font.LineSpacing - _inputTextPadding.Y * 2, ConsoleBounds.Width,
+				Font.LineSpacing + _inputTextPadding.Y * 2))
 			{
 				Padding = new Point(5, 3),
 				BackColor = Color.Black,
@@ -113,7 +116,7 @@ namespace Miku.Framework.Console
 
 			_graphicDevice.SetRenderTarget(historyOutput);
 
-			HistoryRenderer.Render(gameTime, spriteBatch, new Rectangle(_historyTextPadding.ToPoint(), historyOutput.Bounds.Size));
+			HistoryRenderer.Render(gameTime, spriteBatch, new Rectangle(_historyTextPadding, historyOutput.Bounds.Size));
 
 			_graphicDevice.SetRenderTarget(null);
 
@@ -131,14 +134,27 @@ namespace Miku.Framework.Console
 			spriteBatch.DrawRect(_inputField.Bounds, _inputField.BackColor * _inputField.BackOpacity); // BG INPUT
 
 			spriteBatch.DrawString(Font, InputTarget.CurrentInput,
-				_inputField.Bounds.Location.ToVector2() + _inputTextPadding, InputTextColor * InputFontOpacity); // INPUT TEXT
+				_inputField.Bounds.Location.ToVector2() + _inputTextPadding.ToVector2(), InputTextColor * InputFontOpacity); // INPUT TEXT
+
+			if (InputTarget.TextEditor.IsTextHighlighted)
+			{
+				string textBeforeHighlight = InputTarget.TextEditor.Text.Substring(0, InputTarget.TextEditor.HighlightRange.X);
+				int offsetBeforeHighlight = (int)Font.MeasureString(textBeforeHighlight).X;
+				int highlightWidth = (int)Font.MeasureString(InputTarget.TextEditor.HighlightedText).X;
+
+				Rectangle highlightBounds = new Rectangle(_inputField.Bounds.Location +
+					new Point(offsetBeforeHighlight + _inputTextPadding.X, _highlightingPadding.Y),
+					new Point(highlightWidth, _inputField.Bounds.Height - _highlightingPadding.Y*2));
+				
+				spriteBatch.DrawRect(highlightBounds, HighlightColor);
+			}
 
 			Vector2 size = Font.MeasureString(InputTarget.CurrentInput.Substring(0, InputTarget.CursorPosition));
 
 			if (_cursorVisiblePhase || InputTarget.TextEditor.CursorMoving || _shouldIgnoreBlinking > TimeSpan.Zero)
 			{
-				spriteBatch.DrawString(Font, "|", new Vector2(_inputField.Bounds.X + size.X, _inputField.Bounds.Y + _inputField.Padding.Y + 1),
-					Color.White);
+				spriteBatch.DrawString(Font, "|", new Vector2(_inputField.Bounds.X + size.X, _inputField.Bounds.Y 
+					+ _inputField.Padding.Y + 1), CursorColor);
 				_shouldIgnoreBlinking -= gameTime.ElapsedGameTime;
 			}
 

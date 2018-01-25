@@ -30,6 +30,8 @@ namespace Miku.Framework.Console
 		public event EventHandler<EventArgs> ConsoleClosed;
 		public event EventHandler<EventArgs> ConsoleOpened;
 
+		public KeyboardTextEditor TextEditor => _inputManager.TextEditor;
+
 		public SpriteFont Font
 		{
 			get
