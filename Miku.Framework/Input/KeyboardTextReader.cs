@@ -67,15 +67,6 @@ namespace Miku.Framework.Input
 			_keysToHandle.Enqueue(new KeyInfo(e.Key, e.Character));
 		}
 
-		protected virtual bool RemoveTextFromBuffer()
-		{
-			if (_buffer.Length == 0)
-				return false;
-
-			_buffer.Remove(_buffer.Length - 1, 1);
-			return true;
-		}
-
 		protected virtual void WriteTextToBuffer(string str)
 		{
 			_buffer.Append(str);
@@ -86,7 +77,7 @@ namespace Miku.Framework.Input
 			_buffer.Append(chr);
 		}
 
-		protected virtual void WriteControlToBuffer(char control) { }
+		protected virtual void WriteControlToBuffer(char control) {  }
 
 		public virtual void Update(GameTime gameTime)
 		{
@@ -106,9 +97,6 @@ namespace Miku.Framework.Input
 
 				switch (key.Character)
 				{
-					case '\b':
-						RemoveTextFromBuffer();
-						break;
 					case '\t':
 						WriteTextToBuffer(new string(' ', SpacesInTabs));
 						break;

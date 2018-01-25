@@ -17,6 +17,7 @@ namespace Miku.Framework.Console
 		private ConsoleField _historyField;
 		private ConsoleField _inputField;
 
+		private TimeSpan _shouldIgnoreBlinking = TimeSpan.Zero;
 		private TimeSpan _blinkShowtime = TimeSpan.Zero;
 		private TimeSpan _blinkSpeed = TimeSpan.FromSeconds(0.5f);
 		private bool _cursorVisiblePhase = true;
@@ -49,7 +50,6 @@ namespace Miku.Framework.Console
 		public Rectangle ConsoleBounds => new Rectangle(0, 0, ViewportBounds.Width,
 			(int) Math.Max(_graphicDevice.Viewport.Bounds.Height / 2.5f, 200f));
 
-
 		public Color BackColor { get; set; } = Color.White;
 		public float BackOpacity { get; set; } = 0.5f;
 
@@ -60,6 +60,8 @@ namespace Miku.Framework.Console
 		{
 			_graphicDevice = graphicDevice;
 			InputTarget = inputManager;
+
+			InputTarget.TextEditor.CursorPositionChanged += (_, __) => _shouldIgnoreBlinking = TimeSpan.FromSeconds(0.5f);
 
 			HistoryRenderer = new ConsoleHistoryRenderer(InputTarget.ConsoleHistory, Font)
 			{
@@ -133,9 +135,12 @@ namespace Miku.Framework.Console
 
 			Vector2 size = Font.MeasureString(InputTarget.CurrentInput.Substring(0, InputTarget.CursorPosition));
 
-			if (_cursorVisiblePhase || InputTarget.TextEditor.CursorMoving)
+			if (_cursorVisiblePhase || InputTarget.TextEditor.CursorMoving || _shouldIgnoreBlinking > TimeSpan.Zero)
+			{
 				spriteBatch.DrawString(Font, "|", new Vector2(_inputField.Bounds.X + size.X, _inputField.Bounds.Y + _inputField.Padding.Y + 1),
 					Color.White);
+				_shouldIgnoreBlinking -= gameTime.ElapsedGameTime;
+			}
 
 			spriteBatch.Draw(historyOutput, _historyField.Bounds, new Rectangle(Point.Zero, _historyField.Size), Color.White);
 

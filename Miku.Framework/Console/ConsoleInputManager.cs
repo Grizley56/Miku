@@ -11,7 +11,7 @@ namespace Miku.Framework.Console
 		private readonly Console _console;
 		private bool _enabled;
 
-		private LinkedList<CommandInfo> _commandHistory  { get; } = new LinkedList<CommandInfo>();
+		private readonly LinkedList<CommandInfo> _commandHistory = new LinkedList<CommandInfo>();
 		private LinkedListNode<CommandInfo> _selectedCommandFromHistory;
 		
 		internal KeyboardTextEditor TextEditor;
