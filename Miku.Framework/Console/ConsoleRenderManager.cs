@@ -28,6 +28,8 @@ namespace Miku.Framework.Console
 
 		private Point _visibleInputRange;
 		private SpriteFont _font;
+		private float _scrollSpeed = 1f;
+		private int _cursorWidth = 2;
 
 		internal SpriteFont Font
 		{
@@ -43,7 +45,28 @@ namespace Miku.Framework.Console
 
 		internal ConsoleHistoryRenderer HistoryRenderer;
 
-		public float ScrollSpeed { get; set; } = 1f;
+		public float ScrollSpeed
+		{
+			get { return _scrollSpeed; }
+			set
+			{
+				if (value < 0)
+					throw new ArgumentException(nameof(ScrollSpeed));
+
+				_scrollSpeed = value;
+			}
+		}
+		public int CursorWidth
+		{
+			get { return _cursorWidth; }
+			set
+			{
+				if (value < 0)
+					throw new ArgumentException(nameof(CursorWidth));
+
+				_cursorWidth = value;
+			}
+		}
 
 		public ConsoleInputManager InputTarget { get; }
 
@@ -132,9 +155,12 @@ namespace Miku.Framework.Console
 				_blinkShowtime = TimeSpan.Zero;
 			}
 
+			var inputFieldBounds = _inputField.Bounds;
+			var historyFieldBounds = _historyField.Bounds;
+
 			//TODO: renderTarget redraw only if history or client size changed
-			RenderTarget2D historyOutput = new RenderTarget2D(_graphicDevice, _historyField.Bounds.Width, 
-				_historyField.Bounds.Height, false, SurfaceFormat.Bgra32, DepthFormat.None, 1, RenderTargetUsage.PlatformContents);
+			RenderTarget2D historyOutput = new RenderTarget2D(_graphicDevice, historyFieldBounds.Width,
+				historyFieldBounds.Height, false, SurfaceFormat.Bgra32, DepthFormat.None, 1, RenderTargetUsage.PlatformContents);
 
 			_graphicDevice.SetRenderTarget(historyOutput);
 
@@ -151,15 +177,15 @@ namespace Miku.Framework.Console
 			
 			spriteBatch.DrawRect(ConsoleBounds, BackColor * BackOpacity); // BG
 
-			spriteBatch.DrawRect(_historyField.Bounds, _historyField.BackColor * _historyField.BackOpacity); // BG HISTORY
+			spriteBatch.DrawRect(historyFieldBounds, _historyField.BackColor * _historyField.BackOpacity); // BG HISTORY
 
-			spriteBatch.DrawRect(_inputField.Bounds, _inputField.BackColor * _inputField.BackOpacity); // BG INPUT
+			spriteBatch.DrawRect(inputFieldBounds, _inputField.BackColor * _inputField.BackOpacity); // BG INPUT
 
 			string croppedInput = InputTarget.CurrentInput.Substring(_visibleInputRange.X, 
 																															 _visibleInputRange.Y - _visibleInputRange.X);
 			
 			spriteBatch.DrawString(Font, croppedInput,
-				_inputField.Bounds.Location.ToVector2() + _inputTextPadding.ToVector2(), InputTextColor * InputFontOpacity); // INPUT TEXT
+				inputFieldBounds.Location.ToVector2() + _inputTextPadding.ToVector2(), InputTextColor * InputFontOpacity); // INPUT TEXT
 
 			if (InputTarget.TextEditor.IsTextHighlighted)
 			{
@@ -184,24 +210,31 @@ namespace Miku.Framework.Console
 																			.Substring(visiblePartOfHighlight.X, visiblePartOfHighlight.Y - visiblePartOfHighlight.X))
 																			.X;
 
-				Rectangle highlightBounds = new Rectangle(_inputField.Bounds.Location +
+				Rectangle highlightBounds = new Rectangle(inputFieldBounds.Location +
 					new Point(offsetBeforeHighlight, _highlightingPadding.Y),
-					new Point(highlightWidth, _inputField.Bounds.Height - _highlightingPadding.Y*2));
+					new Point(highlightWidth, inputFieldBounds.Height - _highlightingPadding.Y*2));
 				
 				spriteBatch.DrawRect(highlightBounds, HighlightColor);
 			}
-			
-			int relativeCursorPosition = InputTarget.CursorPosition - _visibleInputRange.X;
-			int offsetBeforeCursor = (int)Font.MeasureString(croppedInput.Substring(0, relativeCursorPosition)).X;
 
-			if (_cursorVisiblePhase || InputTarget.TextEditor.CursorMoving || _shouldIgnoreBlinking > TimeSpan.Zero)
+			bool forciblyIgnore = _shouldIgnoreBlinking > TimeSpan.Zero;
+
+			if (_cursorVisiblePhase || InputTarget.TextEditor.CursorMoving || forciblyIgnore)
 			{
-				spriteBatch.DrawString(Font, "|", new Vector2(_inputField.Bounds.X + offsetBeforeCursor, _inputField.Bounds.Y 
-					+ _inputField.Padding.Y + 1), CursorColor);
-				_shouldIgnoreBlinking -= gameTime.ElapsedGameTime;
+				int relativeCursorPosition = InputTarget.CursorPosition - _visibleInputRange.X;
+				int offsetBeforeCursor = (int)Font.MeasureString(croppedInput.Substring(0, relativeCursorPosition)).X + 2;
+
+				if (relativeCursorPosition != 0)
+					offsetBeforeCursor += (int)Font.Spacing / 2;
+
+				spriteBatch.DrawRect(new Rectangle(inputFieldBounds.X + offsetBeforeCursor, inputFieldBounds.Y
+					+ _inputField.Padding.Y + 1, CursorWidth, inputFieldBounds.Height - _inputField.Padding.Y * 2 - 1), CursorColor);
+
+				if(forciblyIgnore)
+					_shouldIgnoreBlinking -= gameTime.ElapsedGameTime;
 			}
 
-			spriteBatch.Draw(historyOutput, _historyField.Bounds, new Rectangle(Point.Zero, _historyField.Size), Color.White);
+			spriteBatch.Draw(historyOutput, historyFieldBounds, new Rectangle(Point.Zero, historyFieldBounds.Size), Color.White);
 
 			spriteBatch.End();
 

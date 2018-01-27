@@ -85,7 +85,7 @@ namespace Miku.Framework.Input
 		public void HighlightAllText() => HighlightRange = new Point(0, _buffer.Length);
 		public void ResetHighlighting() => _highlightRange = new Point(0);
 
-		public KeyboardTextEditor(GameWindow window, Func<char, bool> knownCharacters = null) : base(window, knownCharacters)
+		public KeyboardTextEditor(GameWindow window) : base(window)
 		{
 			_leftArrowTracer = new KeyboardHoldingTracer(Keys.Left, TimeSpan.FromSeconds(0.3f), ControlKeysRepeatSpeed);
 			_rightArrowTracer = new KeyboardHoldingTracer(Keys.Right, TimeSpan.FromSeconds(0.3f), ControlKeysRepeatSpeed);

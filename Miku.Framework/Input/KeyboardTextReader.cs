@@ -11,9 +11,7 @@ namespace Miku.Framework.Input
 {
 	public class KeyboardTextReader
 	{
-		private readonly Func<char, bool> _knownCharacters;
-
-		private enum IgnoreType { All, Keys, Characters, KeyCharcter };
+		private enum IgnoreType { All, Keys, Characters, KeyCharcter }
 
 		protected StringBuilder _buffer = new StringBuilder();
 		protected internal Queue<KeyInfo> _keysToHandle = new Queue<KeyInfo>();
@@ -23,7 +21,6 @@ namespace Miku.Framework.Input
 		private char _inputIgnoreChar;
 		private IgnoreType _inputIgnoreType;
 
-		public char UnknownChars { get; set; } = '?';
 		public int SpacesInTabs { get; set; } = 4;
 		public void Pause() => Enabled = false;
 		public void Unpause() => Enabled = true;
@@ -42,15 +39,10 @@ namespace Miku.Framework.Input
 		}
 		public void Clear() => _buffer.Clear();
 
-		public KeyboardTextReader(GameWindow window, Func<char, bool> knownCharacters = null)
+		public KeyboardTextReader(GameWindow window)
 		{
 			if (window == null)
 				throw new ArgumentNullException(nameof(window));
-
-			if (knownCharacters == null)
-				_knownCharacters = (_ => true);
-			else
-				_knownCharacters = knownCharacters;
 
 			window.TextInput += TextInput;
 		}
@@ -102,7 +94,7 @@ namespace Miku.Framework.Input
 						break;
 					default:
 						if (!char.IsControl(key.Character))
-							WriteTextToBuffer(_knownCharacters(key.Character) ? key.Character : UnknownChars);
+							WriteTextToBuffer(key.Character);
 						else
 							WriteControlToBuffer(key.Character);
 						break;

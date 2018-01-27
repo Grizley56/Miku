@@ -45,7 +45,7 @@ namespace Miku.Framework.Console
 			_console.ConsoleClosed += (_, __) => Enabled = false;
 			_console.ConsoleOpened += (_, __) => Enabled = true;
 
-			TextEditor = new KeyboardTextEditor(_console.Game.Window, i => _console.Font.GetGlyphs().ContainsKey(i));
+			TextEditor = new KeyboardTextEditor(_console.Game.Window);
 			TextEditor.TextEntered += CommandEntered;
 		}
 
