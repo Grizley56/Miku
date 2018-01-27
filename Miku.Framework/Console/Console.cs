@@ -58,34 +58,10 @@ namespace Miku.Framework.Console
 			}
 		}
 
-		public float BackOpacity
-		{
-			get
-			{
-				return _renderManager.BackOpacity;
-			}
-			set
-			{
-				_renderManager.BackOpacity = value;
-			}
-		}
-
 		public Color InputFontColor
 		{
 			get { return _renderManager.InputTextColor; }
 			set { _renderManager.InputTextColor = value; } 
-		}
-
-		public float InputFontOpacity
-		{
-			get
-			{
-				return _renderManager.InputFontOpacity;
-			}
-			set
-			{
-				_renderManager.InputFontOpacity = value;
-			}
 		}
 
 		public bool IsOpened

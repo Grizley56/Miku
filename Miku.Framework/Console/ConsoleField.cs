@@ -12,7 +12,6 @@ namespace Miku.Framework.Console
 		private Func<Rectangle> _getBounds;
 
 		public Color BackColor { get; set; }
-		public float BackOpacity { get; set; }
 
 		public Rectangle Bounds
 		{

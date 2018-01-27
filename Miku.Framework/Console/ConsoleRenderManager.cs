@@ -76,9 +76,6 @@ namespace Miku.Framework.Console
 			(int) Math.Max(_graphicDevice.Viewport.Bounds.Height / 2.5f, 200f));
 
 		public Color BackColor { get; set; } = Color.White;
-		public float BackOpacity { get; set; } = 0.5f;
-
-		public float InputFontOpacity { get; set; } = 1f;
 		public Color InputTextColor { get; set; } = Color.White;
 		public Color HighlightColor { get; set; } = Color.White * 0.5f;
 		public Color CursorColor { get; set; } = Color.White;
@@ -94,10 +91,11 @@ namespace Miku.Framework.Console
 			HistoryRenderer = new ConsoleHistoryRenderer(InputTarget.ConsoleHistory, Font)
 			{
 				ScrollBarPadding = new Point(1, 1),
-				ScrollBarWidth = 5,
-				ScrollBarOpacity = 0.5f,
-				ScrollStripOpacity = 0.6f
+				ScrollBarWidth = 5
 			};
+
+			HistoryRenderer.ScrollBarColor *= 0.5f;
+			HistoryRenderer.ScrollStripColor *= 0.6f;
 
 			InitializeFacade();
 		}
@@ -130,16 +128,14 @@ namespace Miku.Framework.Console
 				Font.LineSpacing + _inputTextPadding.Y * 2))
 			{
 				Padding = new Point(5, 3),
-				BackColor = Color.Black,
-				BackOpacity = 0.5f
+				BackColor = Color.Black * 0.5f,
 			};
 
 			_historyField = new ConsoleField(() => new Rectangle(ConsoleBounds.X, ConsoleBounds.Y, ConsoleBounds.Width,
 				ConsoleBounds.Height - _inputField.Bounds.Height - _inputField.Padding.Y * 2))
 			{
 				Padding = new Point(5, 5),
-				BackColor = Color.Black,
-				BackOpacity = 0.5f
+				BackColor = Color.Black * 0.5f
 			};
 		}
 
@@ -175,17 +171,17 @@ namespace Miku.Framework.Console
 			/////////////////////////////////////////////////////////
 			spriteBatch.Begin();
 			
-			spriteBatch.DrawRect(ConsoleBounds, BackColor * BackOpacity); // BG
+			spriteBatch.DrawRect(ConsoleBounds, BackColor); // BG
 
-			spriteBatch.DrawRect(historyFieldBounds, _historyField.BackColor * _historyField.BackOpacity); // BG HISTORY
+			spriteBatch.DrawRect(historyFieldBounds, _historyField.BackColor); // BG HISTORY
 
-			spriteBatch.DrawRect(inputFieldBounds, _inputField.BackColor * _inputField.BackOpacity); // BG INPUT
+			spriteBatch.DrawRect(inputFieldBounds, _inputField.BackColor); // BG INPUT
 
 			string croppedInput = InputTarget.CurrentInput.Substring(_visibleInputRange.X, 
 																															 _visibleInputRange.Y - _visibleInputRange.X);
 			
 			spriteBatch.DrawString(Font, croppedInput,
-				inputFieldBounds.Location.ToVector2() + _inputTextPadding.ToVector2(), InputTextColor * InputFontOpacity); // INPUT TEXT
+				inputFieldBounds.Location.ToVector2() + _inputTextPadding.ToVector2(), InputTextColor); // INPUT TEXT
 
 			if (InputTarget.TextEditor.IsTextHighlighted)
 			{

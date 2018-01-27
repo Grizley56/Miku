@@ -18,9 +18,7 @@ namespace Miku.Framework.Console
 		public int ScrollBarWidth { get; set; }
 		public Point ScrollBarPadding { get; set; } = new Point(0);
 		public Color ScrollBarColor { get; set; } = Color.White;
-		public float ScrollBarOpacity { get; set; } = 1f;
 		public Color ScrollStripColor { get; set; } = Color.White;
-		public float ScrollStripOpacity { get; set; } = 1f;
 		public bool ScrollBarVisible { get; set; }
 
 		//TODO: property for choose DateTime format (entry time)
@@ -114,10 +112,10 @@ namespace Miku.Framework.Console
 					Vector2 size = Font.MeasureString(match.Value);
 					batch.DrawString(Font, match.Value, offset, entry.TimeColor);
 					batch.DrawString(Font, text.Substring(match.Value.Length), new Vector2(offset.X + size.X, offset.Y),
-						entry.TextColor * entry.TextOpacity);
+						entry.TextColor);
 				}
 				else
-					batch.DrawString(Font, text, offset, entry.TextColor * dividedToLines[i].TextOpacity);
+					batch.DrawString(Font, text, offset, entry.TextColor);
 
 				offset.Y += Font.LineSpacing;
 			}
@@ -127,7 +125,7 @@ namespace Miku.Framework.Console
 				Rectangle scrollBarBounds = new Rectangle(bounds.Size.X - ScrollBarWidth - ScrollBarPadding.X, ScrollBarPadding.Y,
 					ScrollBarWidth, bounds.Height - ScrollBarPadding.Y * 2);
 
-				batch.DrawRect(scrollBarBounds, ScrollBarColor * ScrollBarOpacity);
+				batch.DrawRect(scrollBarBounds, ScrollBarColor);
 
 				int stripHeight = (int)(linesToDraw / (float)totalLines * scrollBarBounds.Height);
 
@@ -139,7 +137,7 @@ namespace Miku.Framework.Console
 						scrollBarBounds.Height - stripHeight - stripOffset + ScrollBarPadding.Y,
 						scrollBarBounds.Width, stripHeight);
 
-					batch.DrawRect(stripBounds, ScrollStripColor * ScrollStripOpacity);
+					batch.DrawRect(stripBounds, ScrollStripColor);
 				}
 			}
 
