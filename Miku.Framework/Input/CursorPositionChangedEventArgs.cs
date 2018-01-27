@@ -8,11 +8,13 @@ namespace Miku.Framework.Input
 {
 	public class CursorPositionChangedEventArgs: EventArgs
 	{
-		public readonly int Position;
+		public readonly int NewPosition;
+		public readonly int OldPosition;
 
-		public CursorPositionChangedEventArgs(int newPosition)
+		public CursorPositionChangedEventArgs(int oldPosition, int newPosition)
 		{
-			Position = newPosition;
+			OldPosition = oldPosition;
+			NewPosition = newPosition;
 		}
 	}
 }

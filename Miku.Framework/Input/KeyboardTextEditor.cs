@@ -15,6 +15,7 @@ namespace Miku.Framework.Input
 	{
 		public event EventHandler<TextEnteredEventArgs> TextEntered;
 		public event EventHandler<CursorPositionChangedEventArgs> CursorPositionChanged;
+		public event EventHandler<TextRemovedEventArgs> TextRemoved;
 
 		public ClipboardTextGetter ClipboardPasting { get; set; }
 		public event EventHandler<ClipboardTextEventArgs> ClipboardCutting;
@@ -30,8 +31,9 @@ namespace Miku.Framework.Input
 				if (value == _cursorPosition)
 					return;
 
+				int oldPosition = _cursorPosition;
 				_cursorPosition = value;
-				OnCursorPositionChanged();
+				OnCursorPositionChanged(new CursorPositionChangedEventArgs(oldPosition, _cursorPosition));
 			}
 		}
 
@@ -96,7 +98,7 @@ namespace Miku.Framework.Input
 			{
 				int startIndex = 0;
 				int count = 0;
-
+				int newCursorPosition = CursorPosition;
 				if (IsTextHighlighted)
 				{
 					switch (control)
@@ -105,17 +107,17 @@ namespace Miku.Framework.Input
 						case '\u0000':																																							//			Delete		//
 							startIndex = HighlightRange.X;                                                            //								//
 							count = HighlightRange.Y - HighlightRange.X;                                              //								//
-							CursorPosition = HighlightRange.X;                                                        //								//
+							newCursorPosition = HighlightRange.X;                                                     //								//
 							break;																																										////////////////////
 						case '\u007f':																																						  // Ctrl+Backspace //
 							startIndex = GetIndexOfPreviousSection(Text, _sectionSplitSymbols, HighlightRange.X);			//								//
 							count = HighlightRange.Y - startIndex;																										//								//
-							CursorPosition = startIndex;																															//								//
+							newCursorPosition = startIndex;																														//								//
 							break;																																										////////////////////
 						case '\u0010':																																							//	 Ctrl+Delete  //
 							startIndex = HighlightRange.X;																														//								//
 							count = GetIndexOfNextSection(Text, _sectionSplitSymbols, HighlightRange.Y) - startIndex; //								//
-							CursorPosition = startIndex;                                                              //								//
+							newCursorPosition = startIndex;                                                           //								//
 							break;                                                                                    ////////////////////
 					}
 					ResetHighlighting();
@@ -126,7 +128,8 @@ namespace Miku.Framework.Input
 					{
 						case '\b':
 							count = CursorPosition == 0 ? 0 : 1;
-							startIndex = CursorPosition == 0 ? 0 : --CursorPosition;
+							startIndex = CursorPosition == 0 ? 0 : CursorPosition - 1;
+							newCursorPosition = startIndex;
 							break;
 						case '\u0000':
 							startIndex = CursorPosition;
@@ -135,7 +138,7 @@ namespace Miku.Framework.Input
 						case '\u007f':
 							startIndex = GetIndexOfPreviousSection(Text, _sectionSplitSymbols, CursorPosition);
 							count = CursorPosition - startIndex;
-							CursorPosition = startIndex;
+							newCursorPosition = startIndex;
 							break;
 						case '\u0010':
 							startIndex = CursorPosition;
@@ -143,7 +146,9 @@ namespace Miku.Framework.Input
 							break;
 					}
 				}
+				//Remove the text before change the curosor position
 				RemoveTextFromBuffer(startIndex, count);
+				CursorPosition = newCursorPosition;
 				return;
 			}
 
@@ -172,11 +177,11 @@ namespace Miku.Framework.Input
 						WriteTextToBuffer(pastingText);                                                   //								//
 					}                                                                                   //								//
 					break;                                                                              ////////////////////
-				case '\u0003': // ctrl + c																														//		Ctrl + C		//
+				case '\u0003':																																				//		Ctrl + C		//
 					if (IsTextHighlighted)                                                              //								//
 						OnClipboardCopying(new ClipboardTextEventArgs(HighlightedText));                  //								//
 					break;                                                                              ////////////////////
-				case '\u0018': // ctrl + x																														//		Ctrl + X		//
+				case '\u0018':																																				//		Ctrl + X		//
 					if (IsTextHighlighted)                                                              //								//
 					{                                                                                   //								//
 						OnClipboardCutting(new ClipboardTextEventArgs(HighlightedText));                  //								//
@@ -195,8 +200,10 @@ namespace Miku.Framework.Input
 
 			if (count == 0 || startIndex == _buffer.Length)
 				return false;
+			
+			var removedSubstring = _buffer.Remove(startIndex, count);
 
-			_buffer.Remove(startIndex, count);
+			OnTextRemoved(new TextRemovedEventArgs(removedSubstring.ToString(), Text, startIndex));
 			return true;
 		}
 
@@ -339,9 +346,9 @@ namespace Miku.Framework.Input
 			return nextSectionIndex;
 		}
 
-		protected virtual void OnCursorPositionChanged()
+		protected virtual void OnCursorPositionChanged(CursorPositionChangedEventArgs e)
 		{
-			CursorPositionChanged?.Invoke(this, new CursorPositionChangedEventArgs(CursorPosition));
+			CursorPositionChanged?.Invoke(this, e);
 		}
 
 		protected virtual void OnTextEntered(TextEnteredEventArgs e)
@@ -357,6 +364,11 @@ namespace Miku.Framework.Input
 		protected virtual void OnClipboardCopying(ClipboardTextEventArgs e)
 		{
 			ClipboardCopying?.Invoke(this, e);
+		}
+
+		protected virtual void OnTextRemoved(TextRemovedEventArgs e)
+		{
+			TextRemoved?.Invoke(this, e);
 		}
 	}
 }

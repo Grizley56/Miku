@@ -26,6 +26,7 @@ namespace Miku.Framework.Console
 		private Point _historyTextPadding = new Point(5, 5);
 		private Point _highlightingPadding = new Point(0, 2);
 
+		private Point _visibleInputRange;
 		private SpriteFont _font;
 
 		internal SpriteFont Font
@@ -63,9 +64,10 @@ namespace Miku.Framework.Console
 		{
 			_graphicDevice = graphicDevice;
 			InputTarget = inputManager;
-
+			
 			InputTarget.TextEditor.CursorPositionChanged += (_, __) => _shouldIgnoreBlinking = TimeSpan.FromSeconds(0.5f);
-
+			InputTarget.TextEditor.CursorPositionChanged += CursorPositionChanged;
+			InputTarget.TextEditor.TextRemoved += InputTextRemoved;
 			HistoryRenderer = new ConsoleHistoryRenderer(InputTarget.ConsoleHistory, Font)
 			{
 				ScrollBarPadding = new Point(1, 1),
@@ -75,6 +77,27 @@ namespace Miku.Framework.Console
 			};
 
 			InitializeFacade();
+		}
+
+		private void InputTextRemoved(object sender, TextRemovedEventArgs e)
+		{
+			if (_visibleInputRange.Y > e.ResultText.Length)
+			{
+				if (_visibleInputRange.X == 0)
+					_visibleInputRange.Y -= _visibleInputRange.Y - InputTarget.CurrentInput.Length;
+				else
+					_visibleInputRange -= new Point(_visibleInputRange.Y - InputTarget.CurrentInput.Length);
+			}
+		}
+		
+		private void CursorPositionChanged(object sender, CursorPositionChangedEventArgs e)
+		{
+			_shouldIgnoreBlinking = TimeSpan.FromSeconds(0.5f);
+
+			if (e.NewPosition > _visibleInputRange.Y)
+				_visibleInputRange += new Point(Math.Min(e.NewPosition - e.OldPosition, InputTarget.CurrentInput.Length - _visibleInputRange.Y));
+			else if (e.NewPosition < _visibleInputRange.X)
+				_visibleInputRange -= new Point(Math.Min(e.OldPosition - e.NewPosition, _visibleInputRange.X));
 		}
 
 		private void InitializeFacade()
@@ -109,7 +132,6 @@ namespace Miku.Framework.Console
 				_blinkShowtime = TimeSpan.Zero;
 			}
 
-			//TODO: add padding for right side of history
 			//TODO: renderTarget redraw only if history or client size changed
 			RenderTarget2D historyOutput = new RenderTarget2D(_graphicDevice, _historyField.Bounds.Width, 
 				_historyField.Bounds.Height, false, SurfaceFormat.Bgra32, DepthFormat.None, 1, RenderTargetUsage.PlatformContents);
@@ -133,27 +155,48 @@ namespace Miku.Framework.Console
 
 			spriteBatch.DrawRect(_inputField.Bounds, _inputField.BackColor * _inputField.BackOpacity); // BG INPUT
 
-			spriteBatch.DrawString(Font, InputTarget.CurrentInput,
+			string croppedInput = InputTarget.CurrentInput.Substring(_visibleInputRange.X, 
+																															 _visibleInputRange.Y - _visibleInputRange.X);
+			
+			spriteBatch.DrawString(Font, croppedInput,
 				_inputField.Bounds.Location.ToVector2() + _inputTextPadding.ToVector2(), InputTextColor * InputFontOpacity); // INPUT TEXT
 
 			if (InputTarget.TextEditor.IsTextHighlighted)
 			{
-				string textBeforeHighlight = InputTarget.TextEditor.Text.Substring(0, InputTarget.TextEditor.HighlightRange.X);
-				int offsetBeforeHighlight = (int)Font.MeasureString(textBeforeHighlight).X;
-				int highlightWidth = (int)Font.MeasureString(InputTarget.TextEditor.HighlightedText).X;
+				Point highlightRange = InputTarget.TextEditor.HighlightRange;
+
+				int offsetBeforeHighlight = _inputTextPadding.X;
+
+				// If the beginning of the highlight is further
+				// than the beginning of the fragment
+				// we should calculate size of string before highlight is start
+				if (highlightRange.X > _visibleInputRange.X)
+				{
+					string textBeforeHighlighting = 
+						InputTarget.CurrentInput.Substring(_visibleInputRange.X, highlightRange.X - _visibleInputRange.X);
+					offsetBeforeHighlight += (int)Font.MeasureString(textBeforeHighlighting).X;
+				}
+
+				Point visiblePartOfHighlight = new Point(Math.Max(highlightRange.X, _visibleInputRange.X), 
+																								 Math.Min(highlightRange.Y, _visibleInputRange.Y));
+
+				int highlightWidth = (int)Font.MeasureString(InputTarget.CurrentInput
+																			.Substring(visiblePartOfHighlight.X, visiblePartOfHighlight.Y - visiblePartOfHighlight.X))
+																			.X;
 
 				Rectangle highlightBounds = new Rectangle(_inputField.Bounds.Location +
-					new Point(offsetBeforeHighlight + _inputTextPadding.X, _highlightingPadding.Y),
+					new Point(offsetBeforeHighlight, _highlightingPadding.Y),
 					new Point(highlightWidth, _inputField.Bounds.Height - _highlightingPadding.Y*2));
 				
 				spriteBatch.DrawRect(highlightBounds, HighlightColor);
 			}
-
-			Vector2 size = Font.MeasureString(InputTarget.CurrentInput.Substring(0, InputTarget.CursorPosition));
+			
+			int relativeCursorPosition = InputTarget.CursorPosition - _visibleInputRange.X;
+			int offsetBeforeCursor = (int)Font.MeasureString(croppedInput.Substring(0, relativeCursorPosition)).X;
 
 			if (_cursorVisiblePhase || InputTarget.TextEditor.CursorMoving || _shouldIgnoreBlinking > TimeSpan.Zero)
 			{
-				spriteBatch.DrawString(Font, "|", new Vector2(_inputField.Bounds.X + size.X, _inputField.Bounds.Y 
+				spriteBatch.DrawString(Font, "|", new Vector2(_inputField.Bounds.X + offsetBeforeCursor, _inputField.Bounds.Y 
 					+ _inputField.Padding.Y + 1), CursorColor);
 				_shouldIgnoreBlinking -= gameTime.ElapsedGameTime;
 			}
@@ -171,6 +214,50 @@ namespace Miku.Framework.Console
 			int delta = MouseComponent.ScrolledInBounds(_historyField.Bounds);
 
 			HistoryRenderer.ScrollDelta += (int)(delta / gameTime.ElapsedGameTime.TotalMilliseconds) * ScrollSpeed;
+
+			UpdateInputText();
+		}
+
+		private void UpdateInputText()
+		{
+			int maxWidth = _inputField.Bounds.Width - _inputTextPadding.X * 2;
+			string fullInput = InputTarget.CurrentInput;
+
+			if (Font.MeasureString(InputTarget.CurrentInput).X <= maxWidth)
+			{
+				_visibleInputRange = new Point(0, fullInput.Length);
+				return;
+			}
+
+			string croppedInput = fullInput.Substring(_visibleInputRange.X, _visibleInputRange.Y - _visibleInputRange.X);
+			int croppedInputWidth = (int)Font.MeasureString(croppedInput).X;
+
+			float averageCharWidth = Font.MeasureString(croppedInput).X / croppedInput.Length;
+
+			if (croppedInputWidth > maxWidth)
+			{
+				float excessedWidth = croppedInputWidth - maxWidth;
+				int excessedChars = (int)Math.Ceiling(excessedWidth / averageCharWidth);
+				for (int i = 0; i < excessedChars; i++)
+				{
+					if (InputTarget.CursorPosition - _visibleInputRange.X != 0)
+						_visibleInputRange.X++; // Release left
+					else
+						_visibleInputRange.Y--; // Release right
+				}
+			}
+			else if (croppedInputWidth + averageCharWidth < maxWidth)
+			{
+				int freeSpace = maxWidth - croppedInputWidth;
+				int canAddCount = (int)Math.Floor(freeSpace / averageCharWidth);
+				for (int i = 0; i < canAddCount; i++)
+				{
+					if (_visibleInputRange.Y < InputTarget.CurrentInput.Length)
+						_visibleInputRange.Y++; // Add on right
+					else
+						_visibleInputRange.X--; // Add on left
+				}
+			}
 		}
 	}
 }
