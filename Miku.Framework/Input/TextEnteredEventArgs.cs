@@ -2,13 +2,13 @@
 
 namespace Miku.Framework.Input
 {
-	public class TextEnteredEventArgs: EventArgs
+	public class TextSubmittedEventArgs: EventArgs
 	{
-		public readonly string EnteredText;
+		public readonly string ResultText;
 
-		public TextEnteredEventArgs(string enteredText)
+		public TextSubmittedEventArgs(string resultText)
 		{
-			EnteredText = enteredText;
+			ResultText = resultText;
 		}
 	}
 }

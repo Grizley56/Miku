@@ -19,18 +19,17 @@ namespace Miku.Framework.Console
 		public ConsoleCommand Help { get; private set; }
 		public ConsoleCommand Cls { get; private set; }
 
-		private SpriteFont _font;
+		internal ConsoleRenderManager RenderManager;
+		internal ConsoleInputManager InputManager;
 
-		private ConsoleRenderManager _renderManager;
-		private ConsoleInputManager _inputManager;
 		private SpriteBatch _spriteBatch;
-
 		private bool _isOpened;
+		private SpriteFont _font;
 
 		public event EventHandler<EventArgs> ConsoleClosed;
 		public event EventHandler<EventArgs> ConsoleOpened;
 
-		public KeyboardTextEditor TextEditor => _inputManager.TextEditor;
+		public KeyboardTextEditor TextEditor => InputManager.TextEditor;
 
 		public SpriteFont Font
 		{
@@ -51,17 +50,17 @@ namespace Miku.Framework.Console
 
 		public Color BackColor
 		{
-			get { return _renderManager.BackColor; }
+			get { return RenderManager.BackColor; }
 			set
 			{
-				_renderManager.BackColor = value;
+				RenderManager.BackColor = value;
 			}
 		}
 
 		public Color InputFontColor
 		{
-			get { return _renderManager.InputTextColor; }
-			set { _renderManager.InputTextColor = value; } 
+			get { return RenderManager.InputTextColor; }
+			set { RenderManager.InputTextColor = value; } 
 		}
 
 		public bool IsOpened
@@ -74,18 +73,24 @@ namespace Miku.Framework.Console
 					return;
 
 				_isOpened = value;
-				_inputManager.Enabled = value;
+				InputManager.Enabled = value;
 			}
 		}
 
 		public void Toggle() => IsOpened = !IsOpened;
 
+		public IAutoCompleteService<IConsoleCommand, string> AutoCompleteService
+		{
+			get { return InputManager.AutoCompleteService; }
+			set { InputManager.AutoCompleteService = value; }
+		}
+
 		public Console(Game game, SpriteFont font) : base(game)
 		{
 			Font = font;
 
-			_inputManager = new ConsoleInputManager(this);
-			_renderManager = new ConsoleRenderManager(_inputManager, game.GraphicsDevice) {Font = font};
+			InputManager = new ConsoleInputManager(this);
+			RenderManager = new ConsoleRenderManager(this, game.GraphicsDevice) {Font = font};
 			_spriteBatch = Game.Services.GetService<SpriteBatch>();
 
 			DrawOrder = int.MaxValue - 1; // TODO: change it 
@@ -99,13 +104,13 @@ namespace Miku.Framework.Console
 		{
 			Help = new ConsoleCommand("help", _ =>
 			{
-				_inputManager.Commands.ForEach(i =>
+				InputManager.Commands.ForEach(i =>
 				{
 					if (i.CommandHelp != null)
-						_inputManager.ConsoleHistory.Log(new ConsoleEntry($"- {i.CommandName} \"{i.CommandHelp}\"", Color.Yellow, false));
+						InputManager.ConsoleHistory.Log(new ConsoleEntry($"- {i.CommandName} \"{i.CommandHelp}\"", Color.Yellow, false));
 				});
 				return null;
-			}, "guide to commands");
+			}, true, "guide to commands");
 
 			Cls = new ConsoleCommand("cls", _ =>
 			{
@@ -116,12 +121,12 @@ namespace Miku.Framework.Console
 
 		public void Log(string message)
 		{
-			_inputManager.ConsoleHistory.Log(new ConsoleEntry(message, Color.White));
+			InputManager.ConsoleHistory.Log(new ConsoleEntry(message, Color.White));
 		}
 
 		public void Log(ConsoleEntry entry)
 		{
-			_inputManager.ConsoleHistory.Log(entry);
+			InputManager.ConsoleHistory.Log(entry);
 		}
 
 		public bool AddCommand(ConsoleCommand command)
@@ -129,10 +134,10 @@ namespace Miku.Framework.Console
 			if (command == null)
 				throw new ArgumentNullException(nameof(command));
 
-			if (_inputManager.Commands.Contains(command, new CommandComparer()))
+			if (InputManager.Commands.Contains(command, new CommandEqualityComparer()))
 				return false;
 
-			_inputManager.Commands.Add(command);
+			InputManager.Commands.Add(command);
 			return true;
 		}
 
@@ -141,7 +146,7 @@ namespace Miku.Framework.Console
 			if (!IsOpened)
 				return;
 
-			_renderManager.Draw(gameTime, _spriteBatch);
+			RenderManager.Draw(gameTime, _spriteBatch);
 			base.Draw(gameTime);
 		}
 
@@ -153,13 +158,13 @@ namespace Miku.Framework.Console
 			if (!IsOpened)
 				return;
 
-			_inputManager.Update(gameTime);
-			_renderManager.Update(gameTime);
+			InputManager.Update(gameTime);
+			RenderManager.Update(gameTime);
 		}
 
 		public void Clear()
 		{
-			_inputManager.ConsoleHistory.Clear();
+			InputManager.ConsoleHistory.Clear();
 		}
 	}
 }

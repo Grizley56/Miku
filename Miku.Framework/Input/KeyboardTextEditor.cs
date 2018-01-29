@@ -13,8 +13,9 @@ namespace Miku.Framework.Input
 
 	public class KeyboardTextEditor : KeyboardTextReader
 	{
-		public event EventHandler<TextEnteredEventArgs> TextEntered;
+		public event EventHandler<TextSubmittedEventArgs> TextSubmitted;
 		public event EventHandler<CursorPositionChangedEventArgs> CursorPositionChanged;
+		public event EventHandler<TextAddedEventArgs> TextAdded;
 		public event EventHandler<TextRemovedEventArgs> TextRemoved;
 
 		public ClipboardTextGetter ClipboardPasting { get; set; }
@@ -37,6 +38,18 @@ namespace Miku.Framework.Input
 			}
 		}
 
+		public new string Text
+		{
+			get { return _buffer.ToString(); }
+			set
+			{
+				if (value == null)
+					throw new ArgumentNullException(nameof(Text));
+				Clear();
+				CursorPosition = 0;
+				WriteTextToBuffer(value);
+			}
+		}
 		public TimeSpan ControlKeysRepeatSpeed
 		{
 			get { return _controlKeysRepeatSpeed; }
@@ -51,7 +64,7 @@ namespace Miku.Framework.Input
 			}
 		}
 		public bool CursorMoving => _leftArrowTracer.IsHolded || _rightArrowTracer.IsHolded;
-
+		public void Clear() => RemoveTextFromBuffer(0, _buffer.Length);
 		public Point HighlightRange
 		{
 			get { return _highlightRange; }
@@ -153,9 +166,11 @@ namespace Miku.Framework.Input
 			}
 
 			switch (control)
-			{                                                                                       ////////////////////
+			{
+				case '\t':
+					break;																																							////////////////////
 				case '\r':																																						//			Enter			//
-					OnTextEntered(new TextEnteredEventArgs(Text));																			//								//
+					OnTextEntered(new TextSubmittedEventArgs(Text));																		//								//
 					Clear();                                                                            //								//
 																																															//								//
 					CursorPosition = 0;                                                                 //								//
@@ -221,6 +236,7 @@ namespace Miku.Framework.Input
 				ResetHighlighting();
 			}
 			_buffer.Insert(CursorPosition, str);
+			OnTextAdded(new TextAddedEventArgs(str, Text, CursorPosition));
 			CursorPosition += str.Length;
 		}
 
@@ -351,9 +367,9 @@ namespace Miku.Framework.Input
 			CursorPositionChanged?.Invoke(this, e);
 		}
 
-		protected virtual void OnTextEntered(TextEnteredEventArgs e)
+		protected virtual void OnTextEntered(TextSubmittedEventArgs e)
 		{
-			TextEntered?.Invoke(this, e);
+			TextSubmitted?.Invoke(this, e);
 		}
 
 		protected virtual void OnClipboardCutting(ClipboardTextEventArgs e)
@@ -369,6 +385,11 @@ namespace Miku.Framework.Input
 		protected virtual void OnTextRemoved(TextRemovedEventArgs e)
 		{
 			TextRemoved?.Invoke(this, e);
+		}
+
+		protected virtual void OnTextAdded(TextAddedEventArgs e)
+		{
+			TextAdded?.Invoke(this, e);
 		}
 	}
 }

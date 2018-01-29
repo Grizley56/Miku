@@ -44,7 +44,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Console\Command.cs" />
+    <Compile Include="Input\CharHandlerEventArgs.cs" />
+    <Compile Include="Console\ConsoleAutoCompleteService.cs" />
+    <Compile Include="Console\ConsoleCommand.cs" />
     <Compile Include="Console\CommandInfo.cs" />
     <Compile Include="Console\Console.cs" />
     <Compile Include="Console\ConsoleEntry.cs" />
@@ -54,6 +56,9 @@
     <Compile Include="Console\ConsoleHistoryRenderer.cs" />
     <Compile Include="Console\ConsoleInputManager.cs" />
     <Compile Include="Console\ConsoleRenderManager.cs" />
+    <Compile Include="Console\IAutoCompleteable.cs" />
+    <Compile Include="Console\IAutoCompleteService.cs" />
+    <Compile Include="Console\IConsoleCommand.cs" />
     <Compile Include="Console\IConsole.cs" />
     <Compile Include="Console\ScrollKind.cs" />
     <Compile Include="Debug\FpsCounterComponent.cs" />
@@ -65,6 +70,7 @@
     <Compile Include="Input\KeyboardTextEditor.cs" />
     <Compile Include="Input\KeyboardComponent.cs" />
     <Compile Include="Input\MouseComponent.cs" />
+    <Compile Include="Input\TextAddedEventArgs.cs" />
     <Compile Include="Input\TextEnteredEventArgs.cs" />
     <Compile Include="Input\KeyboardTextReader.cs" />
     <Compile Include="Input\KeyInfo.cs" />

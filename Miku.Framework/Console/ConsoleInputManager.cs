@@ -10,12 +10,14 @@ namespace Miku.Framework.Console
 	{
 		private readonly Console _console;
 		private bool _enabled;
+		private string _tempInput;
 
 		private readonly LinkedList<CommandInfo> _commandHistory = new LinkedList<CommandInfo>();
 		private LinkedListNode<CommandInfo> _selectedCommandFromHistory;
 		
 		internal KeyboardTextEditor TextEditor;
 		internal List<ConsoleCommand> Commands = new List<ConsoleCommand>();
+		internal IAutoCompleteService<IConsoleCommand, string> AutoCompleteService;
 
 		public ConsoleHistory ConsoleHistory { get; } = new ConsoleHistory();
 		public string CommandNotFoundMessage { get; set; } = "Unknown command";
@@ -34,9 +36,11 @@ namespace Miku.Framework.Console
 				_enabled = TextEditor.Enabled = value;
 			}
 		}
-
 		public string CurrentInput => TextEditor.Text;
 		public int CursorPosition => TextEditor.CursorPosition;
+
+		public IConsoleCommand[] AutoCompleteVariation { get; private set; } = new IConsoleCommand[0];
+		public int AutoCompleteSelectedIndex { get; private set; }
 
 		public ConsoleInputManager(Console console)
 		{
@@ -46,7 +50,22 @@ namespace Miku.Framework.Console
 			_console.ConsoleOpened += (_, __) => Enabled = true;
 
 			TextEditor = new KeyboardTextEditor(_console.Game.Window);
-			TextEditor.TextEntered += CommandEntered;
+			TextEditor.TextSubmitted += CommandEntered;
+			TextEditor.CharHandling += TextEditorTabHandling;
+
+			TextEditor.TextAdded += (_, __) => UpdateAutoComplete();
+			TextEditor.TextRemoved += (_, __) => UpdateAutoComplete();
+
+			AutoCompleteService = new ConsoleAutoCompleteService(Commands);
+		}
+
+		private void TextEditorTabHandling(object sender, CharHandlingEventArgs e)
+		{
+			if (e.Char != '\t')
+				return;
+
+			TextEditor.Text = AutoCompleteVariation[AutoCompleteSelectedIndex].CommandName;
+			e.IgnoreHandle = true;
 		}
 
 		public void Update(GameTime gameTime)
@@ -56,56 +75,63 @@ namespace Miku.Framework.Console
 
 			if (KeyboardComponent.KeyPressed(Keys.Down))
 			{
-				CommandInfo nextCommand = GetNextHistoryItem();
-				if (nextCommand != null)
+				if (!MoveToNextHistoryCommand())
 				{
-					TextEditor.Text = _selectedCommandFromHistory.Value.ToString();
-					TextEditor.SetCursorTo(InputCursorPosition.End);
+					AutoCompleteSelectedIndex = Math.Min(++AutoCompleteSelectedIndex, AutoCompleteVariation.Length - 1);
 				}
 			}
 
 			if (KeyboardComponent.KeyPressed(Keys.Up))
 			{
-				CommandInfo previousCommand = GetPreviousHistoryItem();
-				if (previousCommand != null)
-				{
-					TextEditor.Text = previousCommand.ToString();
-					TextEditor.SetCursorTo(InputCursorPosition.End);
-				}
+				if (AutoCompleteSelectedIndex > 0)
+					AutoCompleteSelectedIndex = Math.Max(--AutoCompleteSelectedIndex, 0);
+				else
+					MoveToPreviousHistoryCommand();
 			}
 
 			TextEditor.Update(gameTime);
 		}
 
-		public CommandInfo GetPreviousHistoryItem()
+		public bool MoveToNextHistoryCommand()
+		{
+			if (_selectedCommandFromHistory?.Previous == null)
+			{
+				if (_tempInput == null)
+					return false;
+
+				_selectedCommandFromHistory = null;
+				TextEditor.Text = _tempInput;
+				_tempInput = null;
+				return true;
+			}
+
+			_selectedCommandFromHistory = _selectedCommandFromHistory.Previous;
+			TextEditor.Text = _selectedCommandFromHistory.Value.CommandName;
+			return true;
+		}
+
+		public bool MoveToPreviousHistoryCommand()
 		{
 			if (_commandHistory.Count == 0)
-				return null;
+				return false;
 
 			if (_selectedCommandFromHistory == null)
+			{
+				_tempInput = CurrentInput;
 				_selectedCommandFromHistory = _commandHistory.First;
+			}
 			else if (_selectedCommandFromHistory != _commandHistory.Last)
 				_selectedCommandFromHistory = _selectedCommandFromHistory.Next;
 
-			return _selectedCommandFromHistory?.Value;
+			// ReSharper disable once PossibleNullReferenceException
+			TextEditor.Text = _selectedCommandFromHistory.Value.CommandName;
+
+			return true;
 		}
-
-		public CommandInfo GetNextHistoryItem()
+		
+		private void CommandEntered(object sender, TextSubmittedEventArgs e)
 		{
-			if (_selectedCommandFromHistory == null)
-				return null;
-
-			if (_selectedCommandFromHistory == null)
-				_selectedCommandFromHistory = _commandHistory.Last;
-			else if (_selectedCommandFromHistory != _commandHistory.First)
-				_selectedCommandFromHistory = _selectedCommandFromHistory.Previous;
-
-			return _selectedCommandFromHistory?.Value;
-		}
-
-		private void CommandEntered(object sender, TextEnteredEventArgs e)
-		{
-			CommandInfo commandInfo = CommandInfo.FromString(e.EnteredText);
+			CommandInfo commandInfo = CommandInfo.FromString(e.ResultText);
 
 			if(_commandHistory.First == null)
 				_commandHistory.AddFirst(commandInfo);
@@ -119,13 +145,25 @@ namespace Miku.Framework.Console
 			if (command != null)
 			{
 				ConsoleEntry result = command.Function?.Invoke(commandInfo.Args);
-				ConsoleHistory.Log(new ConsoleEntry(e.EnteredText, Color.White));
+				ConsoleHistory.Log(new ConsoleEntry(e.ResultText, Color.White));
 				if (result != null)
 					ConsoleHistory.Log(new ConsoleEntry("- " + result.Data, result.TextColor, false));
 			}
 			else
 				ConsoleHistory.Log(new ConsoleEntry(GenerateNotFoundMessage(commandInfo.CommandName), Color.Red));
+
+			UpdateAutoComplete();
 		}
 		private string GenerateNotFoundMessage(string command) =>  $"{CommandNotFoundMessage} \"{command}\"";
+
+		private void UpdateAutoComplete()
+		{
+			if (AutoCompleteService == null)
+				return;
+
+			AutoCompleteVariation = AutoCompleteService[CurrentInput];
+			if (AutoCompleteVariation.Length > 0)
+				AutoCompleteSelectedIndex = 0;
+		}
 	}
 }

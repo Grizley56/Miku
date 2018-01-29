@@ -65,7 +65,7 @@ namespace Miku.Framework.Console
 		public void Render(GameTime gameTime, SpriteBatch batch, Rectangle bounds)
 		{
 			if (bounds == Rectangle.Empty)
-				throw new ArgumentException(nameof(bounds));
+				return;
 			
 			batch.Begin();
 

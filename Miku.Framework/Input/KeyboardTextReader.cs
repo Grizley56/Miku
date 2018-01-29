@@ -21,10 +21,11 @@ namespace Miku.Framework.Input
 		private char _inputIgnoreChar;
 		private IgnoreType _inputIgnoreType;
 
-		public int SpacesInTabs { get; set; } = 4;
 		public void Pause() => Enabled = false;
 		public void Unpause() => Enabled = true;
 		public bool Enabled { get; set; } = true;
+
+		public event EventHandler<CharHandlingEventArgs> CharHandling;
 
 		public string Text
 		{
@@ -37,7 +38,6 @@ namespace Miku.Framework.Input
 				_buffer.Append(value);
 			}
 		}
-		public void Clear() => _buffer.Clear();
 
 		public KeyboardTextReader(GameWindow window)
 		{
@@ -76,6 +76,7 @@ namespace Miku.Framework.Input
 			if (!Enabled)
 				return;
 
+
 			while (_keysToHandle.Count > 0)
 			{
 				KeyInfo key = _keysToHandle.Dequeue();
@@ -87,18 +88,16 @@ namespace Miku.Framework.Input
 					continue;
 				}
 
-				switch (key.Character)
-				{
-					case '\t':
-						WriteTextToBuffer(new string(' ', SpacesInTabs));
-						break;
-					default:
-						if (!char.IsControl(key.Character))
-							WriteTextToBuffer(key.Character);
-						else
-							WriteControlToBuffer(key.Character);
-						break;
-				}
+				CharHandlingEventArgs eventArgs = new CharHandlingEventArgs(key.Character);
+				CharHandling?.Invoke(this, eventArgs);
+
+				if (eventArgs.IgnoreHandle)
+					continue;
+
+				if (!char.IsControl(key.Character))
+					WriteTextToBuffer(key.Character);
+				else
+					WriteControlToBuffer(key.Character);
 			}
 			
 		}

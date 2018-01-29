@@ -10,16 +10,19 @@ namespace Miku.Framework.Console
 {
 	public delegate ConsoleEntry CommandFunc(string[] args);
 
-	public class ConsoleCommand: IEquatable<ConsoleCommand>
+	public class ConsoleCommand: IEquatable<ConsoleCommand>, IConsoleCommand
 	{
 		public string CommandName { get; }
 		public string CommandHelp { get; }
 		public CommandFunc Function { get; }
 
-		public ConsoleCommand(string commandName, CommandFunc function, string commandHelp = null)
+		public bool AutoCompleteEnabled { get; set; }
+
+		public ConsoleCommand(string commandName, CommandFunc function, bool autoCompleteEnabled = true, string commandHelp = null)
 		{
 			CommandName = commandName;
 			Function = function;
+			AutoCompleteEnabled = autoCompleteEnabled;
 			CommandHelp = commandHelp;
 		}
 
@@ -47,9 +50,10 @@ namespace Miku.Framework.Console
 		{
 			return (CommandName != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(CommandName) : 0);
 		}
+
 	}
 
-	public class CommandComparer : IEqualityComparer<ConsoleCommand>
+	public class CommandEqualityComparer : IEqualityComparer<ConsoleCommand>
 	{
 		public bool Equals(ConsoleCommand x, ConsoleCommand y)
 		{
@@ -59,6 +63,17 @@ namespace Miku.Framework.Console
 		public int GetHashCode(ConsoleCommand obj)
 		{
 			return obj.GetHashCode();
+		}
+	}
+
+	public class CommandByNameComparer : IComparer<IConsoleCommand>
+	{
+		public int Compare(IConsoleCommand x, IConsoleCommand y)
+		{
+			if (x == null || y == null)
+				return 0;
+
+			return String.Compare(x.CommandHelp, y.CommandHelp, StringComparison.OrdinalIgnoreCase);
 		}
 	}
 }
