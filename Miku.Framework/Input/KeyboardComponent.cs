@@ -40,6 +40,7 @@ namespace Miku.Framework.Input
 			if (e.GameComponent is KeyboardComponent && Loaded)
 			{
         Loaded = false;
+				Instance = null;
 				((GameComponent) e.GameComponent).Game.Components.ComponentRemoved -= CheckForForceRemove;
 			}
 		}

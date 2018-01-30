@@ -8,7 +8,7 @@ namespace Miku.Framework.Console
 {
 	internal sealed class ConsoleInputManager
 	{
-		private readonly Console _console;
+		private readonly GameConsole _console;
 		private bool _enabled;
 		private string _tempInput;
 
@@ -42,12 +42,12 @@ namespace Miku.Framework.Console
 		public IConsoleCommand[] AutoCompleteVariation { get; private set; } = new IConsoleCommand[0];
 		public int AutoCompleteSelectedIndex { get; private set; }
 
-		public ConsoleInputManager(Console console)
+		public ConsoleInputManager(GameConsole console)
 		{
 			_console = console;
 
-			_console.ConsoleClosed += (_, __) => Enabled = false;
-			_console.ConsoleOpened += (_, __) => Enabled = true;
+			_console.Closed += (_, __) => Enabled = false;
+			_console.Opened += (_, __) => Enabled = true;
 
 			TextEditor = new KeyboardTextEditor(_console.Game.Window);
 			TextEditor.TextSubmitted += CommandEntered;
@@ -145,12 +145,12 @@ namespace Miku.Framework.Console
 			if (command != null)
 			{
 				ConsoleEntry result = command.Function?.Invoke(commandInfo.Args);
-				ConsoleHistory.Log(new ConsoleEntry(e.ResultText, Color.White));
+				ConsoleHistory.Log(new ConsoleEntry(e.ResultText));
 				if (result != null)
 					ConsoleHistory.Log(new ConsoleEntry("- " + result.Data, result.TextColor, false));
 			}
 			else
-				ConsoleHistory.Log(new ConsoleEntry(GenerateNotFoundMessage(commandInfo.CommandName), Color.Red));
+				ConsoleHistory.Log(new ConsoleEntry(GenerateNotFoundMessage(commandInfo.CommandName), GameConsole.Instance.Skin.HistoryWarningColor));
 
 			UpdateAutoComplete();
 		}

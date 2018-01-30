@@ -7,11 +7,9 @@ using Microsoft.Xna.Framework;
 
 namespace Miku.Framework.Console
 {
-	class ConsoleField
+	internal class ConsoleField
 	{
-		private Func<Rectangle> _getBounds;
-
-		public Color BackColor { get; set; }
+		private readonly Func<Rectangle> _getBounds;
 
 		public Rectangle Bounds
 		{
@@ -23,6 +21,7 @@ namespace Miku.Framework.Console
 		}
 
 		public Point Padding { get; set; }
+		public Point TextPadding { get; set; }
 
 		public Point Size
 		{
@@ -33,13 +32,15 @@ namespace Miku.Framework.Console
 			}
 		}
 
-		public ConsoleField(Func<Rectangle> getBounds)
+		public ConsoleField(Func<Rectangle> getBounds, Point padding, Point textPadding)
 		{
 			if (getBounds == null)
 				throw new ArgumentNullException(nameof(getBounds));
 			
+			Padding = padding;
+			TextPadding = textPadding;
 			_getBounds = getBounds;
+			
 		}
-		
 	}
 }

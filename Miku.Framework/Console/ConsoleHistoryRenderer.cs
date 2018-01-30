@@ -15,10 +15,6 @@ namespace Miku.Framework.Console
 		public SpriteFont Font { get; set; }
 		public ConsoleHistory Histroy { get; }
 
-		public int ScrollBarWidth { get; set; }
-		public Point ScrollBarPadding { get; set; } = new Point(0);
-		public Color ScrollBarColor { get; set; } = Color.White;
-		public Color ScrollStripColor { get; set; } = Color.White;
 		public bool ScrollBarVisible { get; set; }
 
 		//TODO: property for choose DateTime format (entry time)
@@ -69,9 +65,13 @@ namespace Miku.Framework.Console
 			
 			batch.Begin();
 
+			int scrollBarWidth = GameConsole.Instance.Skin.ScrollBarWidth;
+			Point scrollBarPadding = GameConsole.Instance.Skin.ScrollBarPadding;
+
 			//One output entry can be bigger than aviable width-space, so split it to a few lines
 			ConsoleEntry[] dividedToLines = GetForBounds(Font, new Rectangle(bounds.Location, 
-				new Point(bounds.Size.X - ScrollBarWidth - ScrollBarPadding.X - 5, bounds.Size.Y - ScrollBarPadding.Y)));
+				new Point(bounds.Size.X - scrollBarWidth - scrollBarPadding.X - 5, 
+				bounds.Size.Y - scrollBarPadding.Y)));
 
 			int linesToDraw = Math.Min(bounds.Height / Font.LineSpacing, dividedToLines.Length);
 
@@ -122,10 +122,10 @@ namespace Miku.Framework.Console
 
 			if (ScrollBarVisible)
 			{
-				Rectangle scrollBarBounds = new Rectangle(bounds.Size.X - ScrollBarWidth - ScrollBarPadding.X, ScrollBarPadding.Y,
-					ScrollBarWidth, bounds.Height - ScrollBarPadding.Y * 2);
+				Rectangle scrollBarBounds = new Rectangle(bounds.Size.X - scrollBarWidth - scrollBarPadding.X, scrollBarPadding.Y,
+					scrollBarWidth, bounds.Height - scrollBarPadding.Y * 2);
 
-				batch.DrawRect(scrollBarBounds, ScrollBarColor);
+				batch.DrawRect(scrollBarBounds, GameConsole.Instance.Skin.ScrollBarColor);
 
 				int stripHeight = (int)(linesToDraw / (float)totalLines * scrollBarBounds.Height);
 
@@ -134,10 +134,10 @@ namespace Miku.Framework.Console
 				{
 					int stripOffset = (int)(scrollBarBounds.Height / (float)totalLines * linesScrolled);
 					Rectangle stripBounds = new Rectangle(scrollBarBounds.X,
-						scrollBarBounds.Height - stripHeight - stripOffset + ScrollBarPadding.Y,
+						scrollBarBounds.Height - stripHeight - stripOffset + scrollBarPadding.Y,
 						scrollBarBounds.Width, stripHeight);
 
-					batch.DrawRect(stripBounds, ScrollStripColor);
+					batch.DrawRect(stripBounds, GameConsole.Instance.Skin.ScrollBarStripColor);
 				}
 			}
 

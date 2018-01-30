@@ -11,7 +11,6 @@ namespace Miku.Framework.Console
 	internal class ConsoleHistory
 	{
 		public List<ConsoleEntry> Entries { get; private set; } = new List<ConsoleEntry>();
-		public Color TimeColor { get; set; } = Color.Red;
 		public bool ShowTime { get; set; } = true;
 
 		public event EventHandler<EventArgs> HistoryCleared;

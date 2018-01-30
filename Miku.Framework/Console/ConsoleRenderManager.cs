@@ -20,19 +20,13 @@ namespace Miku.Framework.Console
 
 		private TimeSpan _shouldIgnoreBlinking = TimeSpan.Zero;
 		private TimeSpan _blinkShowtime = TimeSpan.Zero;
-		private TimeSpan _blinkSpeed = TimeSpan.FromSeconds(0.5f);
 		private bool _cursorVisiblePhase = true;
 
-		private Point _inputTextPadding = new Point(3, 5);
-		private Point _historyTextPadding = new Point(5, 5);
 		private Point _highlightingPadding = new Point(0, 2);
-		private Point _autocompleteTextPadding = new Point(10, 1);
 		private Point _visibleInputRange;
 
 		private SpriteFont _font;
 		private float _scrollSpeed = 1f;
-		private int _cursorWidth = 2;
-		private Console _console;
 
 		internal SpriteFont Font
 		{
@@ -59,56 +53,34 @@ namespace Miku.Framework.Console
 				_scrollSpeed = value;
 			}
 		}
-		public int CursorWidth
-		{
-			get { return _cursorWidth; }
-			set
-			{
-				if (value < 0)
-					throw new ArgumentException(nameof(CursorWidth));
-
-				_cursorWidth = value;
-			}
-		}
 
 		public ConsoleInputManager InputTarget { get; }
 
 		public Rectangle ViewportBounds => _graphicDevice.Viewport.Bounds;
-		public int AutocompleteFieldReadlWidth => InputTarget.AutoCompleteVariation.Length == 0
-			? 0
-			: InputTarget.AutoCompleteVariation.Select(variant =>
-				(int)Font.MeasureString(variant.CommandName).X).Max();
 
 		public Rectangle ConsoleBounds => new Rectangle(0, 0, ViewportBounds.Width,
-			(int) Math.Max(_graphicDevice.Viewport.Bounds.Height / 2.5f, 200f));
+			(int) Math.Max(ViewportBounds.Height / 2.5f, 200f));
 
-		public Color BackColor { get; set; } = Color.White;
-		public Color InputTextColor { get; set; } = Color.White;
-		public Color HighlightColor { get; set; } = Color.White * 0.5f;
-		public Color CursorColor { get; set; } = Color.White;
-		public Color AutoCompleteTextColor { get; set; } = Color.White;
-		public Color AutoCompleteSelectedTextColor { get; set; } = Color.Gold;
-		public Color AutoCompleteBorderColor { get; set; } = Color.White * 0.6f;
+		public int GetAutoCompleteRealWidth()
+		{
+			if (InputTarget.AutoCompleteVariation.Length == 0)
+				return 0;
 
-		public ConsoleRenderManager(Console console, GraphicsDevice graphicDevice)
+			return InputTarget.AutoCompleteVariation.Select(variant =>
+				       (int)Font.MeasureString(variant.CommandName).X).Max()
+			       + _autoCompleteField.TextPadding.X * 2 + _autoCompleteField.Padding.X * 2;
+		}
+
+		public ConsoleRenderManager(GameConsole console, GraphicsDevice graphicDevice)
 		{
 			_graphicDevice = graphicDevice;
-			_console = console;
 			InputTarget = console.InputManager;
 			
 			InputTarget.TextEditor.CursorPositionChanged += (_, __) => _shouldIgnoreBlinking = TimeSpan.FromSeconds(0.5f);
 			InputTarget.TextEditor.CursorPositionChanged += CursorPositionChanged;
 			InputTarget.TextEditor.TextRemoved += InputTextRemoved;
 
-			HistoryRenderer = new ConsoleHistoryRenderer(InputTarget.ConsoleHistory, Font)
-			{
-				ScrollBarPadding = new Point(1, 1),
-				ScrollBarWidth = 5
-			};
-
-			HistoryRenderer.ScrollBarColor *= 0.5f;
-			HistoryRenderer.ScrollStripColor *= 0.6f;
-
+			HistoryRenderer = new ConsoleHistoryRenderer(InputTarget.ConsoleHistory, Font);
 			InitializeFacade();
 		}
 
@@ -135,37 +107,38 @@ namespace Miku.Framework.Console
 
 		private void InitializeFacade()
 		{
-			_inputField = new ConsoleField(() => new Rectangle(ConsoleBounds.X,
-				ConsoleBounds.Height - Font.LineSpacing - _inputTextPadding.Y * 2, ConsoleBounds.Width,
-				Font.LineSpacing + _inputTextPadding.Y * 2))
-			{
-				Padding = new Point(5, 3),
-				BackColor = Color.Black * 0.5f,
-			};
+			_inputField = new ConsoleField(() => new Rectangle(
+				ConsoleBounds.X,
+				ConsoleBounds.Height - Font.LineSpacing - _inputField.TextPadding.Y * 2, 
+				ConsoleBounds.Width,
+				Font.LineSpacing + _inputField.TextPadding.Y * 2), 
+				new Point(5, 3),
+				new Point(3, 5));
 
-			_historyField = new ConsoleField(() => new Rectangle(ConsoleBounds.X, ConsoleBounds.Y, ConsoleBounds.Width,
-				ConsoleBounds.Height - _inputField.Bounds.Height - _inputField.Padding.Y * 2))
-			{
-				Padding = new Point(5, 5),
-				BackColor = Color.Black * 0.5f
-			};
+			_historyField = new ConsoleField(() => new Rectangle(
+				ConsoleBounds.X,
+				ConsoleBounds.Y,
+				ConsoleBounds.Width,
+				ConsoleBounds.Height - _inputField.Bounds.Height - _inputField.Padding.Y * 2), 
+				new Point(5, 5),
+				new Point(5, 5));
 
-			_autoCompleteField = new ConsoleField(() => new Rectangle(ConsoleBounds.X, ConsoleBounds.Y + ConsoleBounds.Height,
-				Math.Min(ConsoleBounds.Width, AutocompleteFieldReadlWidth + _autocompleteTextPadding.X*2 + _autoCompleteField.Padding.X*2), 
-				Font.LineSpacing * InputTarget.AutoCompleteVariation.Length))
-			{
-				BackColor = new Color(55, 55, 87) * 0.7f,
-				Padding = new Point(5, 0)
-			};
+			_autoCompleteField = new ConsoleField(() => new Rectangle(
+				ConsoleBounds.X,
+				ConsoleBounds.Y + ConsoleBounds.Height,
+				Math.Min(ConsoleBounds.Width, GetAutoCompleteRealWidth()),
+				Font.LineSpacing * InputTarget.AutoCompleteVariation.Length), 
+				new Point(5, 0),
+				new Point(10, 1));
 		}
-		
+
 		public void Draw(GameTime gameTime, SpriteBatch spriteBatch)
 		{
 			_graphicDevice.PresentationParameters.RenderTargetUsage = RenderTargetUsage.PlatformContents;
 
 			_blinkShowtime += gameTime.ElapsedGameTime;
 
-			if (_blinkShowtime >= _blinkSpeed)
+			if (_blinkShowtime >= GameConsole.Instance.Skin.CursorBlinkSpeed)
 			{
 				_cursorVisiblePhase = !_cursorVisiblePhase;
 				_blinkShowtime = TimeSpan.Zero;
@@ -180,7 +153,7 @@ namespace Miku.Framework.Console
 
 			_graphicDevice.SetRenderTarget(historyOutput);
 
-			HistoryRenderer.Render(gameTime, spriteBatch, new Rectangle(_historyTextPadding, historyOutput.Bounds.Size));
+			HistoryRenderer.Render(gameTime, spriteBatch, new Rectangle(_historyField.TextPadding, historyOutput.Bounds.Size));
 
 			_graphicDevice.SetRenderTarget(null);
 
@@ -191,23 +164,24 @@ namespace Miku.Framework.Console
 			/////////////////////////////////////////////////////////
 			spriteBatch.Begin();
 			
-			spriteBatch.DrawRect(ConsoleBounds, BackColor); // BG
+			spriteBatch.DrawRect(ConsoleBounds, GameConsole.Instance.Skin.ConsoleBackground); // BG
 
-			spriteBatch.DrawRect(historyFieldBounds, _historyField.BackColor); // BG HISTORY
+			spriteBatch.DrawRect(historyFieldBounds, GameConsole.Instance.Skin.HistoryField.BackColor); // BG HISTORY
 
-			spriteBatch.DrawRect(inputFieldBounds, _inputField.BackColor); // BG INPUT
+			spriteBatch.DrawRect(inputFieldBounds, GameConsole.Instance.Skin.InputField.BackColor); // BG INPUT
 
 			string croppedInput = InputTarget.CurrentInput.Substring(_visibleInputRange.X, 
 																															 _visibleInputRange.Y - _visibleInputRange.X);
 			
 			spriteBatch.DrawString(Font, croppedInput,
-				inputFieldBounds.Location.ToVector2() + _inputTextPadding.ToVector2(), InputTextColor); // INPUT TEXT
+				inputFieldBounds.Location.ToVector2() + _inputField.TextPadding.ToVector2(), 
+				GameConsole.Instance.Skin.InputField.TextColor); // INPUT TEXT
 
 			if (InputTarget.TextEditor.IsTextHighlighted)
 			{
 				Point highlightRange = InputTarget.TextEditor.HighlightRange;
 
-				int offsetBeforeHighlight = _inputTextPadding.X;
+				int offsetBeforeHighlight = _inputField.TextPadding.X;
 
 				// If the beginning of the highlight is further
 				// than the beginning of the fragment
@@ -230,7 +204,7 @@ namespace Miku.Framework.Console
 					new Point(offsetBeforeHighlight, _highlightingPadding.Y),
 					new Point(highlightWidth, inputFieldBounds.Height - _highlightingPadding.Y*2));
 				
-				spriteBatch.DrawRect(highlightBounds, HighlightColor);
+				spriteBatch.DrawRect(highlightBounds, GameConsole.Instance.Skin.HighlightColor);
 			}
 
 			//===============Cursor================//
@@ -245,7 +219,9 @@ namespace Miku.Framework.Console
 					offsetBeforeCursor += (int)Font.Spacing / 2;
 
 				spriteBatch.DrawRect(new Rectangle(inputFieldBounds.X + offsetBeforeCursor, inputFieldBounds.Y
-					+ _inputField.Padding.Y + 1, CursorWidth, inputFieldBounds.Height - _inputField.Padding.Y * 2 - 1), CursorColor);
+					+ _inputField.Padding.Y + 1, GameConsole.Instance.Skin.CursorWidth, 
+					inputFieldBounds.Height - _inputField.Padding.Y * 2 - 1), 
+					GameConsole.Instance.Skin.CursorColor);
 
 				if(forciblyIgnore)
 					_shouldIgnoreBlinking -= gameTime.ElapsedGameTime;
@@ -258,26 +234,27 @@ namespace Miku.Framework.Console
 			//===============AutoComplete============//
 			var autoCompleteBounds = _autoCompleteField.Bounds;
 
-			spriteBatch.DrawRect(autoCompleteBounds, _autoCompleteField.BackColor);
+			spriteBatch.DrawRect(autoCompleteBounds, GameConsole.Instance.Skin.AutoCompleteField.BackColor);
 
-			spriteBatch.DrawRect(new Rectangle(autoCompleteBounds.X, autoCompleteBounds.Y, 3, autoCompleteBounds.Height + 1), 
-				AutoCompleteBorderColor);
+			spriteBatch.DrawRect(new Rectangle(autoCompleteBounds.X, autoCompleteBounds.Y, 3, autoCompleteBounds.Height + 1),
+				GameConsole.Instance.Skin.AutoCompleteBorder);
 
-			spriteBatch.DrawRect(new Rectangle(autoCompleteBounds.X + autoCompleteBounds.Width - 3, autoCompleteBounds.Y, 3, 
-				autoCompleteBounds.Height + 1), AutoCompleteBorderColor);
+			spriteBatch.DrawRect(new Rectangle(autoCompleteBounds.Right - 3, autoCompleteBounds.Y, 3, 
+				autoCompleteBounds.Height + 1), GameConsole.Instance.Skin.AutoCompleteBorder);
 			
 			for (int i = 0; i < InputTarget.AutoCompleteVariation.Length; i++)
 			{
-				var position = new Vector2(autoCompleteBounds.X + _autocompleteTextPadding.X, 
-					autoCompleteBounds.Y + _autocompleteTextPadding.Y + Font.LineSpacing * i);
+				var position = new Vector2(autoCompleteBounds.X + _autoCompleteField.TextPadding.X, 
+					autoCompleteBounds.Y + _autoCompleteField.TextPadding.Y + Font.LineSpacing * i);
 
 				spriteBatch.DrawString(Font, InputTarget.AutoCompleteVariation[i].CommandName, position, 
 					i == InputTarget.AutoCompleteSelectedIndex 
-						? AutoCompleteSelectedTextColor 
-						: AutoCompleteTextColor);
+						? GameConsole.Instance.Skin.AutoCompleteSelectedTextColor
+						: GameConsole.Instance.Skin.AutoCompleteField.TextColor);
 
-				spriteBatch.DrawRect(new Rectangle((int)position.X - _autocompleteTextPadding.X + 3, 
-					(int)position.Y + Font.LineSpacing - 2, autoCompleteBounds.Width - 6, 2), AutoCompleteBorderColor);
+				spriteBatch.DrawRect(new Rectangle((int)position.X - _autoCompleteField.TextPadding.X + 3, 
+					(int)position.Y + Font.LineSpacing - 2, autoCompleteBounds.Width - 6, 2), 
+					GameConsole.Instance.Skin.AutoCompleteBorder);
 			}
 
 			spriteBatch.End();
@@ -298,7 +275,7 @@ namespace Miku.Framework.Console
 
 		private void UpdateInputText()
 		{
-			int maxWidth = _inputField.Bounds.Width - _inputTextPadding.X * 2;
+			int maxWidth = _inputField.Bounds.Width - _inputField.TextPadding.X * 2;
 			string fullInput = InputTarget.CurrentInput;
 
 			if (Font.MeasureString(InputTarget.CurrentInput).X <= maxWidth)

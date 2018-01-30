@@ -14,8 +14,18 @@ using Miku.Framework.Input;
 
 namespace Miku.Framework.Console
 {
-	public class Console : DrawableGameComponent, IConsole
+	public class GameConsole : DrawableGameComponent, IConsole
 	{
+		public static GameConsole Create(Game game, SpriteFont font)
+		{
+			if (Instance != null)
+				throw new InvalidOperationException("Instance already created");
+			Instance = new GameConsole(game, font);
+			return Instance;
+		}
+
+		public static GameConsole Instance { get; private set; }
+
 		public ConsoleCommand Help { get; private set; }
 		public ConsoleCommand Cls { get; private set; }
 
@@ -25,9 +35,10 @@ namespace Miku.Framework.Console
 		private SpriteBatch _spriteBatch;
 		private bool _isOpened;
 		private SpriteFont _font;
+		private ConsoleSkin _skin;
 
-		public event EventHandler<EventArgs> ConsoleClosed;
-		public event EventHandler<EventArgs> ConsoleOpened;
+		public event EventHandler<EventArgs> Closed;
+		public event EventHandler<EventArgs> Opened;
 
 		public KeyboardTextEditor TextEditor => InputManager.TextEditor;
 
@@ -47,21 +58,6 @@ namespace Miku.Framework.Console
 		}
 
 		public Keys OpenKey { get; set; } = Keys.OemTilde;
-
-		public Color BackColor
-		{
-			get { return RenderManager.BackColor; }
-			set
-			{
-				RenderManager.BackColor = value;
-			}
-		}
-
-		public Color InputFontColor
-		{
-			get { return RenderManager.InputTextColor; }
-			set { RenderManager.InputTextColor = value; } 
-		}
 
 		public bool IsOpened
 
@@ -85,9 +81,22 @@ namespace Miku.Framework.Console
 			set { InputManager.AutoCompleteService = value; }
 		}
 
-		public Console(Game game, SpriteFont font) : base(game)
+		public ConsoleSkin Skin
+		{
+			get { return _skin; }
+			set
+			{
+				if (value == null)
+					throw new ArgumentNullException(nameof(Skin));
+
+				_skin = value; 
+			}
+		}
+
+		protected GameConsole(Game game, SpriteFont font) : base(game)
 		{
 			Font = font;
+			Skin = ConsoleSkins.Light;
 
 			InputManager = new ConsoleInputManager(this);
 			RenderManager = new ConsoleRenderManager(this, game.GraphicsDevice) {Font = font};
@@ -121,7 +130,7 @@ namespace Miku.Framework.Console
 
 		public void Log(string message)
 		{
-			InputManager.ConsoleHistory.Log(new ConsoleEntry(message, Color.White));
+			InputManager.ConsoleHistory.Log(new ConsoleEntry(message));
 		}
 
 		public void Log(ConsoleEntry entry)
