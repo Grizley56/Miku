@@ -351,15 +351,15 @@ namespace Miku.Framework.Input
 
 		private static int GetIndexOfPreviousSection(string str, char[] sectionSplitChars, int startIndex)
 		{
-			int nextSectionIndex = str.IndexOfAny(sectionSplitChars, startIndex, Direction.RightToLeft);
+			int previousSectionIndex = str.LastIndexOfAny(sectionSplitChars, startIndex - 1);
 
-			if (nextSectionIndex == startIndex)
+			if (previousSectionIndex == startIndex - 1)
 				return GetIndexOfPreviousSection(str, sectionSplitChars, --startIndex);
 
-			if (nextSectionIndex == -1)
-				nextSectionIndex = 0;
+			if (previousSectionIndex == -1)
+				previousSectionIndex = 0;
 
-			return nextSectionIndex;
+			return previousSectionIndex;
 		}
 
 		protected virtual void OnCursorPositionChanged(CursorPositionChangedEventArgs e)
