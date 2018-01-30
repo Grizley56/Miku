@@ -50,7 +50,7 @@
     <Compile Include="Console\ConsoleAutoCompleteService.cs" />
     <Compile Include="Console\ConsoleCommand.cs" />
     <Compile Include="Console\CommandInfo.cs" />
-    <Compile Include="Console\MConsole.cs" />
+    <Compile Include="Console\GameConsole.cs" />
     <Compile Include="Console\ConsoleEntry.cs" />
     <Compile Include="Console\ConsoleEntryAddedEventArgs.cs" />
     <Compile Include="Console\ConsoleField.cs" />
