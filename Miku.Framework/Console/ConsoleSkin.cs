@@ -43,7 +43,7 @@ namespace Miku.Framework.Console
 
 		public TimeSpan CursorBlinkSpeed { get; set; }
 
-		public Color DefaultHistoryTimeColor { get; set; }
+		public Color HistoryTimeColor { get; set; }
 		public Color HistoryWarningColor { get; set; }
 
 		public object Clone()
@@ -61,7 +61,7 @@ namespace Miku.Framework.Console
 				ScrollBarWidth = ScrollBarWidth,
 				CursorWidth = CursorWidth,
 				CursorBlinkSpeed = CursorBlinkSpeed,
-				DefaultHistoryTimeColor = DefaultHistoryTimeColor,
+				HistoryTimeColor = HistoryTimeColor,
 				HistoryWarningColor = HistoryWarningColor,
 				InputField = (FieldSkin)InputField.Clone(),
 				HistoryField = (FieldSkin)HistoryField.Clone(),

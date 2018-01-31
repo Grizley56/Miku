@@ -12,36 +12,47 @@ namespace Miku.Framework.Console
 {
 	internal class ConsoleRenderManager
 	{
-		private readonly GraphicsDevice _graphicDevice;
-
+		private readonly GameConsole _console;
 		private ConsoleField _historyField;
 		private ConsoleField _inputField;
 		private ConsoleField _autoCompleteField;
-
+		private SpriteFont _font;
+		private ConsoleSkin _skin;
 		private TimeSpan _shouldIgnoreBlinking = TimeSpan.Zero;
 		private TimeSpan _blinkShowtime = TimeSpan.Zero;
 		private bool _cursorVisiblePhase = true;
-
 		private Point _highlightingPadding = new Point(0, 2);
 		private Point _visibleInputRange;
-
-		private SpriteFont _font;
 		private float _scrollSpeed = 1f;
 
-		internal SpriteFont Font
+		internal ConsoleHistoryRenderer HistoryRenderer;
+
+		public ConsoleInputManager InputTarget => _console.InputManager;
+		public GraphicsDevice GraphicsDevice => _console.Game.GraphicsDevice;
+		public Rectangle ViewportBounds => GraphicsDevice.Viewport.Bounds;
+		public Rectangle ConsoleBounds => new Rectangle(0, 0, ViewportBounds.Width,
+			(int) Math.Max(ViewportBounds.Height / 2.5f, 200f));
+
+		public SpriteFont Font
 		{
 			get { return _font; }
 			set
 			{
 				if (value == null)
 					throw new ArgumentNullException(nameof(Font));
-
-				_font = HistoryRenderer.Font = value;
+				_font = value;
 			}
 		}
-
-		internal ConsoleHistoryRenderer HistoryRenderer;
-
+		public ConsoleSkin Skin
+		{
+			get { return _skin; }
+			set
+			{
+				if (value == null)
+					throw new ArgumentNullException(nameof(Skin));
+				_skin = value;
+			}
+		}
 		public float ScrollSpeed
 		{
 			get { return _scrollSpeed; }
@@ -54,13 +65,6 @@ namespace Miku.Framework.Console
 			}
 		}
 
-		public ConsoleInputManager InputTarget { get; }
-
-		public Rectangle ViewportBounds => _graphicDevice.Viewport.Bounds;
-
-		public Rectangle ConsoleBounds => new Rectangle(0, 0, ViewportBounds.Width,
-			(int) Math.Max(ViewportBounds.Height / 2.5f, 200f));
-
 		public int GetAutoCompleteRealWidth()
 		{
 			if (InputTarget.AutoCompleteVariation.Length == 0)
@@ -71,16 +75,20 @@ namespace Miku.Framework.Console
 			       + _autoCompleteField.TextPadding.X * 2 + _autoCompleteField.Padding.X * 2;
 		}
 
-		public ConsoleRenderManager(GameConsole console, GraphicsDevice graphicDevice)
+		public ConsoleRenderManager(GameConsole console, SpriteFont font, ConsoleSkin skin)
 		{
-			_graphicDevice = graphicDevice;
-			InputTarget = console.InputManager;
-			
+			if (console == null)
+				throw new ArgumentNullException(nameof(console));
+
+			Font = font;
+			Skin = skin;
+			_console = console;
+
 			InputTarget.TextEditor.CursorPositionChanged += (_, __) => _shouldIgnoreBlinking = TimeSpan.FromSeconds(0.5f);
 			InputTarget.TextEditor.CursorPositionChanged += CursorPositionChanged;
 			InputTarget.TextEditor.TextRemoved += InputTextRemoved;
 
-			HistoryRenderer = new ConsoleHistoryRenderer(InputTarget.ConsoleHistory, Font);
+			HistoryRenderer = new ConsoleHistoryRenderer(this);
 			InitializeFacade();
 		}
 
@@ -134,11 +142,11 @@ namespace Miku.Framework.Console
 
 		public void Draw(GameTime gameTime, SpriteBatch spriteBatch)
 		{
-			_graphicDevice.PresentationParameters.RenderTargetUsage = RenderTargetUsage.PlatformContents;
+			GraphicsDevice.PresentationParameters.RenderTargetUsage = RenderTargetUsage.PlatformContents;
 
 			_blinkShowtime += gameTime.ElapsedGameTime;
 
-			if (_blinkShowtime >= GameConsole.Instance.Skin.CursorBlinkSpeed)
+			if (_blinkShowtime >= Skin.CursorBlinkSpeed)
 			{
 				_cursorVisiblePhase = !_cursorVisiblePhase;
 				_blinkShowtime = TimeSpan.Zero;
@@ -148,14 +156,14 @@ namespace Miku.Framework.Console
 			var historyFieldBounds = _historyField.Bounds;
 
 			//TODO: renderTarget redraw only if history or client size changed
-			RenderTarget2D historyOutput = new RenderTarget2D(_graphicDevice, historyFieldBounds.Width,
+			RenderTarget2D historyOutput = new RenderTarget2D(GraphicsDevice, historyFieldBounds.Width,
 				historyFieldBounds.Height, false, SurfaceFormat.Bgra32, DepthFormat.None, 1, RenderTargetUsage.PlatformContents);
 
-			_graphicDevice.SetRenderTarget(historyOutput);
+			GraphicsDevice.SetRenderTarget(historyOutput);
 
 			HistoryRenderer.Render(gameTime, spriteBatch, new Rectangle(_historyField.TextPadding, historyOutput.Bounds.Size));
 
-			_graphicDevice.SetRenderTarget(null);
+			GraphicsDevice.SetRenderTarget(null);
 
 			/////////////////////////////////////////////////////////
 			//The better way to draw it on new RenderTarget2D////////
@@ -164,18 +172,18 @@ namespace Miku.Framework.Console
 			/////////////////////////////////////////////////////////
 			spriteBatch.Begin();
 			
-			spriteBatch.DrawRect(ConsoleBounds, GameConsole.Instance.Skin.ConsoleBackground); // BG
+			spriteBatch.DrawRect(ConsoleBounds, Skin.ConsoleBackground); // BG
 
-			spriteBatch.DrawRect(historyFieldBounds, GameConsole.Instance.Skin.HistoryField.BackColor); // BG HISTORY
+			spriteBatch.DrawRect(historyFieldBounds, Skin.HistoryField.BackColor); // BG HISTORY
 
-			spriteBatch.DrawRect(inputFieldBounds, GameConsole.Instance.Skin.InputField.BackColor); // BG INPUT
+			spriteBatch.DrawRect(inputFieldBounds, Skin.InputField.BackColor); // BG INPUT
 
 			string croppedInput = InputTarget.CurrentInput.Substring(_visibleInputRange.X, 
 																															 _visibleInputRange.Y - _visibleInputRange.X);
 			
 			spriteBatch.DrawString(Font, croppedInput,
 				inputFieldBounds.Location.ToVector2() + _inputField.TextPadding.ToVector2(), 
-				GameConsole.Instance.Skin.InputField.TextColor); // INPUT TEXT
+				Skin.InputField.TextColor); // INPUT TEXT
 
 			if (InputTarget.TextEditor.IsTextHighlighted)
 			{
@@ -204,7 +212,7 @@ namespace Miku.Framework.Console
 					new Point(offsetBeforeHighlight, _highlightingPadding.Y),
 					new Point(highlightWidth, inputFieldBounds.Height - _highlightingPadding.Y*2));
 				
-				spriteBatch.DrawRect(highlightBounds, GameConsole.Instance.Skin.HighlightColor);
+				spriteBatch.DrawRect(highlightBounds, Skin.HighlightColor);
 			}
 
 			//===============Cursor================//
@@ -219,9 +227,9 @@ namespace Miku.Framework.Console
 					offsetBeforeCursor += (int)Font.Spacing / 2;
 
 				spriteBatch.DrawRect(new Rectangle(inputFieldBounds.X + offsetBeforeCursor, inputFieldBounds.Y
-					+ _inputField.Padding.Y + 1, GameConsole.Instance.Skin.CursorWidth, 
+					+ _inputField.Padding.Y + 1, Skin.CursorWidth, 
 					inputFieldBounds.Height - _inputField.Padding.Y * 2 - 1), 
-					GameConsole.Instance.Skin.CursorColor);
+					Skin.CursorColor);
 
 				if(forciblyIgnore)
 					_shouldIgnoreBlinking -= gameTime.ElapsedGameTime;
@@ -234,13 +242,13 @@ namespace Miku.Framework.Console
 			//===============AutoComplete============//
 			var autoCompleteBounds = _autoCompleteField.Bounds;
 
-			spriteBatch.DrawRect(autoCompleteBounds, GameConsole.Instance.Skin.AutoCompleteField.BackColor);
+			spriteBatch.DrawRect(autoCompleteBounds, Skin.AutoCompleteField.BackColor);
 
 			spriteBatch.DrawRect(new Rectangle(autoCompleteBounds.X, autoCompleteBounds.Y, 3, autoCompleteBounds.Height + 1),
-				GameConsole.Instance.Skin.AutoCompleteBorder);
+				Skin.AutoCompleteBorder);
 
 			spriteBatch.DrawRect(new Rectangle(autoCompleteBounds.Right - 3, autoCompleteBounds.Y, 3, 
-				autoCompleteBounds.Height + 1), GameConsole.Instance.Skin.AutoCompleteBorder);
+				autoCompleteBounds.Height + 1), Skin.AutoCompleteBorder);
 			
 			for (int i = 0; i < InputTarget.AutoCompleteVariation.Length; i++)
 			{
@@ -249,19 +257,19 @@ namespace Miku.Framework.Console
 
 				spriteBatch.DrawString(Font, InputTarget.AutoCompleteVariation[i].CommandName, position, 
 					i == InputTarget.AutoCompleteSelectedIndex 
-						? GameConsole.Instance.Skin.AutoCompleteSelectedTextColor
-						: GameConsole.Instance.Skin.AutoCompleteField.TextColor);
+						? Skin.AutoCompleteSelectedTextColor
+						: Skin.AutoCompleteField.TextColor);
 
 				spriteBatch.DrawRect(new Rectangle((int)position.X - _autoCompleteField.TextPadding.X + 3, 
 					(int)position.Y + Font.LineSpacing - 2, autoCompleteBounds.Width - 6, 2), 
-					GameConsole.Instance.Skin.AutoCompleteBorder);
+					Skin.AutoCompleteBorder);
 			}
 
 			spriteBatch.End();
 
 
 			historyOutput.Dispose();
-			_graphicDevice.PresentationParameters.RenderTargetUsage = RenderTargetUsage.DiscardContents;
+			GraphicsDevice.PresentationParameters.RenderTargetUsage = RenderTargetUsage.DiscardContents;
 		}
 
 		public void Update(GameTime gameTime)

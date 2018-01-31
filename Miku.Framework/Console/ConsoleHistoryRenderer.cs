@@ -12,36 +12,34 @@ namespace Miku.Framework.Console
 {
 	internal class ConsoleHistoryRenderer
 	{
-		public SpriteFont Font { get; set; }
-		public ConsoleHistory Histroy { get; }
+		private float _scrollDelta;
+		private readonly ConsoleRenderManager _renderManager;
 
+		public ConsoleHistory History => _renderManager.InputTarget.ConsoleHistory;
 		public bool ScrollBarVisible { get; set; }
-
-		//TODO: property for choose DateTime format (entry time)
-
 		public float ScrollDelta
 		{
 			get { return _scrollDelta; }
 			set { _scrollDelta = value < 0 ? 0 : value; }
 		}
 
-		private float _scrollDelta;
-
-		public ConsoleHistoryRenderer(ConsoleHistory history, SpriteFont font, bool showScrolling = true)
+		public ConsoleHistoryRenderer(ConsoleRenderManager renderManager)
 		{
-			Histroy = history;
-			Font = font;
-			ScrollBarVisible = showScrolling;
+			if (renderManager == null)
+				throw new ArgumentNullException(nameof(renderManager));
+			_renderManager = renderManager;
 
-			history.HistoryCleared += (_, __) => ScrollDelta = 0;
-			history.EntryAdded += (_, __) => ScrollDelta = 0;
+			History.HistoryCleared += (_, __) => ScrollDelta = 0;
+			History.EntryAdded += (_, __) => ScrollDelta = 0;
+
+			ScrollBarVisible = true;
 		}
 
 		private ConsoleEntry[] GetForBounds(SpriteFont font, Rectangle bounds)
 		{
-			List<ConsoleEntry> result = new List<ConsoleEntry>(Histroy.Entries.Count);
+			List<ConsoleEntry> result = new List<ConsoleEntry>(History.Entries.Count);
 
-			foreach (var entry in Histroy.Entries)
+			foreach (var entry in History.Entries)
 			{
 				string time = String.Empty;
 				if (entry.TimeVisible)
@@ -65,17 +63,18 @@ namespace Miku.Framework.Console
 			
 			batch.Begin();
 
-			int scrollBarWidth = GameConsole.Instance.Skin.ScrollBarWidth;
-			Point scrollBarPadding = GameConsole.Instance.Skin.ScrollBarPadding;
+			int scrollBarWidth = _renderManager.Skin.ScrollBarWidth;
+			Point scrollBarPadding = _renderManager.Skin.ScrollBarPadding;
+			SpriteFont font = _renderManager.Font;
 
 			//One output entry can be bigger than aviable width-space, so split it to a few lines
-			ConsoleEntry[] dividedToLines = GetForBounds(Font, new Rectangle(bounds.Location, 
+			ConsoleEntry[] dividedToLines = GetForBounds(font, new Rectangle(bounds.Location, 
 				new Point(bounds.Size.X - scrollBarWidth - scrollBarPadding.X - 5, 
 				bounds.Size.Y - scrollBarPadding.Y)));
 
-			int linesToDraw = Math.Min(bounds.Height / Font.LineSpacing, dividedToLines.Length);
+			int linesToDraw = Math.Min(bounds.Height / font.LineSpacing, dividedToLines.Length);
 
-			float linesScrolled = ScrollDelta / Font.LineSpacing;
+			float linesScrolled = ScrollDelta / font.LineSpacing;
 
 			int totalLines = dividedToLines.Length;
 
@@ -84,7 +83,7 @@ namespace Miku.Framework.Console
 			if (totalLinesSkipped >= totalLines)
 			{
 				linesScrolled = totalLines - linesToDraw;
-				ScrollDelta = Font.LineSpacing * linesScrolled;
+				ScrollDelta = font.LineSpacing * linesScrolled;
 			}
 
 			int lastTextIndex = dividedToLines.Length - 1 - (int) linesScrolled;
@@ -94,10 +93,10 @@ namespace Miku.Framework.Console
 			int drawBeforeBounds = firstTextIndex == 0 ? 0 : 1;
 			
 			float precentOfLineScrolled = linesScrolled - (int)linesScrolled;
-			float scrolledPartInPixels = precentOfLineScrolled * Font.LineSpacing;
+			float scrolledPartInPixels = precentOfLineScrolled * font.LineSpacing;
 
 			Vector2 offset = new Vector2(bounds.X,
-				bounds.Y + scrolledPartInPixels - (drawBeforeBounds == 1 ? Font.LineSpacing : 0));
+				bounds.Y + scrolledPartInPixels - (drawBeforeBounds == 1 ? font.LineSpacing : 0));
 
 			Regex timePattern = new Regex(@"\[\d+:\d+:\d+\]");
 
@@ -109,15 +108,15 @@ namespace Miku.Framework.Console
 				if (entry.TimeVisible)
 				{
 					Match match = timePattern.Match(text);
-					Vector2 size = Font.MeasureString(match.Value);
-					batch.DrawString(Font, match.Value, offset, entry.TimeColor);
-					batch.DrawString(Font, text.Substring(match.Value.Length), new Vector2(offset.X + size.X, offset.Y),
-						entry.TextColor);
+					Vector2 size = font.MeasureString(match.Value);
+					batch.DrawString(font, match.Value, offset, _renderManager.Skin.HistoryTimeColor);
+					batch.DrawString(font, text.Substring(match.Value.Length), new Vector2(offset.X + size.X, offset.Y),
+						entry.TextColor ?? _renderManager.Skin.HistoryField.TextColor);
 				}
 				else
-					batch.DrawString(Font, text, offset, entry.TextColor);
+					batch.DrawString(font, text, offset, entry.TextColor ?? _renderManager.Skin.HistoryField.TextColor);
 
-				offset.Y += Font.LineSpacing;
+				offset.Y += font.LineSpacing;
 			}
 
 			if (ScrollBarVisible)
@@ -125,7 +124,7 @@ namespace Miku.Framework.Console
 				Rectangle scrollBarBounds = new Rectangle(bounds.Size.X - scrollBarWidth - scrollBarPadding.X, scrollBarPadding.Y,
 					scrollBarWidth, bounds.Height - scrollBarPadding.Y * 2);
 
-				batch.DrawRect(scrollBarBounds, GameConsole.Instance.Skin.ScrollBarColor);
+				batch.DrawRect(scrollBarBounds, _renderManager.Skin.ScrollBarColor);
 
 				int stripHeight = (int)(linesToDraw / (float)totalLines * scrollBarBounds.Height);
 
@@ -137,7 +136,7 @@ namespace Miku.Framework.Console
 						scrollBarBounds.Height - stripHeight - stripOffset + scrollBarPadding.Y,
 						scrollBarBounds.Width, stripHeight);
 
-					batch.DrawRect(stripBounds, GameConsole.Instance.Skin.ScrollBarStripColor);
+					batch.DrawRect(stripBounds, _renderManager.Skin.ScrollBarStripColor);
 				}
 			}
 

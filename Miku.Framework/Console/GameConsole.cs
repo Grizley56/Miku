@@ -16,14 +16,14 @@ namespace Miku.Framework.Console
 {
 	public class GameConsole : DrawableGameComponent, IConsole
 	{
-		public static GameConsole Create(Game game, SpriteFont font)
+		public static GameConsole Create(Game game, SpriteFont font, ConsoleSkin skin = null)
 		{
 			if (Instance != null)
 				throw new InvalidOperationException("Instance already created");
-			Instance = new GameConsole(game, font);
+
+			Instance = new GameConsole(game, font, skin ?? ConsoleSkins.Dark);
 			return Instance;
 		}
-
 		public static GameConsole Instance { get; private set; }
 
 		public ConsoleCommand Help { get; private set; }
@@ -34,33 +34,15 @@ namespace Miku.Framework.Console
 
 		private SpriteBatch _spriteBatch;
 		private bool _isOpened;
-		private SpriteFont _font;
-		private ConsoleSkin _skin;
 
 		public event EventHandler<EventArgs> Closed;
 		public event EventHandler<EventArgs> Opened;
 
 		public KeyboardTextEditor TextEditor => InputManager.TextEditor;
-
-		public SpriteFont Font
-		{
-			get
-			{
-				return _font;
-			}
-			set
-			{
-				if (value == null)
-					throw new ArgumentNullException(nameof(Font));
-
-				_font = value;
-			}
-		}
-
+		
 		public Keys OpenKey { get; set; } = Keys.OemTilde;
 
 		public bool IsOpened
-
 		{
 			get { return _isOpened; }
 			set
@@ -70,6 +52,10 @@ namespace Miku.Framework.Console
 
 				_isOpened = value;
 				InputManager.Enabled = value;
+				if (value)
+					OnOpened();
+				else
+					OnClosed();
 			}
 		}
 
@@ -83,26 +69,25 @@ namespace Miku.Framework.Console
 
 		public ConsoleSkin Skin
 		{
-			get { return _skin; }
-			set
-			{
-				if (value == null)
-					throw new ArgumentNullException(nameof(Skin));
-
-				_skin = value; 
-			}
+			get { return RenderManager.Skin; }
+			set { RenderManager.Skin = value; }
 		}
 
-		protected GameConsole(Game game, SpriteFont font) : base(game)
+		public SpriteFont Font
 		{
-			Font = font;
-			Skin = ConsoleSkins.Light;
+			get { return RenderManager.Font; }
+			set { RenderManager.Font = value; }
+		}
 
+		protected GameConsole(Game game, SpriteFont font, ConsoleSkin skin)
+			:base(game)
+		{
 			InputManager = new ConsoleInputManager(this);
-			RenderManager = new ConsoleRenderManager(this, game.GraphicsDevice) {Font = font};
+			RenderManager = new ConsoleRenderManager(this, font, skin);
+
 			_spriteBatch = Game.Services.GetService<SpriteBatch>();
 
-			DrawOrder = int.MaxValue - 1; // TODO: change it 
+			DrawOrder = int.MaxValue - 1; // TODO: fint the better way
 			Game.Services.AddService(typeof(IConsole), this);
 			Game.Components.Add(this);
 
@@ -174,6 +159,16 @@ namespace Miku.Framework.Console
 		public void Clear()
 		{
 			InputManager.ConsoleHistory.Clear();
+		}
+
+		protected virtual void OnClosed()
+		{
+			Closed?.Invoke(this, EventArgs.Empty);
+		}
+
+		protected virtual void OnOpened()
+		{
+			Opened?.Invoke(this, EventArgs.Empty);
 		}
 	}
 }

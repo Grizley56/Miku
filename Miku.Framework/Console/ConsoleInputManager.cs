@@ -145,12 +145,16 @@ namespace Miku.Framework.Console
 			if (command != null)
 			{
 				ConsoleEntry result = command.Function?.Invoke(commandInfo.Args);
-				ConsoleHistory.Log(new ConsoleEntry(e.ResultText));
+				ConsoleHistory.Log(new ConsoleEntry(e.ResultText)); // log entered command in history
 				if (result != null)
-					ConsoleHistory.Log(new ConsoleEntry("- " + result.Data, result.TextColor, false));
+				{
+					ConsoleHistory.Log(result.TimeVisible
+						? new ConsoleEntry(result.Data, result.TextColor, result.TimeVisible)
+						: new ConsoleEntry("- " + result.Data, result.TextColor, result.TimeVisible));
+				}
 			}
 			else
-				ConsoleHistory.Log(new ConsoleEntry(GenerateNotFoundMessage(commandInfo.CommandName), GameConsole.Instance.Skin.HistoryWarningColor));
+				ConsoleHistory.Log(new ConsoleEntry(GenerateNotFoundMessage(commandInfo.CommandName), _console.Skin.HistoryWarningColor));
 
 			UpdateAutoComplete();
 		}
