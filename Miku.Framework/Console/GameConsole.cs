@@ -51,7 +51,7 @@ namespace Miku.Framework.Console
 			set
 			{
 				if (value == null)
-					throw new ArgumentNullException("Font");
+					throw new ArgumentNullException(nameof(Font));
 
 				_font = value;
 			}

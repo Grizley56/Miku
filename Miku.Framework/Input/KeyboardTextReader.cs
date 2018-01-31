@@ -23,7 +23,7 @@ namespace Miku.Framework.Input
 
 		public void Pause() => Enabled = false;
 		public void Unpause() => Enabled = true;
-		public bool Enabled { get; set; } = true;
+		public bool Enabled { get; set; }
 
 		public event EventHandler<CharHandlingEventArgs> CharHandling;
 
