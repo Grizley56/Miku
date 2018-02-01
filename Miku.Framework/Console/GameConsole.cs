@@ -87,7 +87,7 @@ namespace Miku.Framework.Console
 
 			_spriteBatch = Game.Services.GetService<SpriteBatch>();
 
-			DrawOrder = int.MaxValue - 1; // TODO: fint the better way
+			DrawOrder = int.MaxValue - 1; // TODO: find the better way
 			Game.Services.AddService(typeof(IConsole), this);
 			Game.Components.Add(this);
 
@@ -147,7 +147,9 @@ namespace Miku.Framework.Console
 		public override void Update(GameTime gameTime)
 		{
 			if (KeyboardComponent.KeyPressed(OpenKey))
+			{
 				Toggle();
+			}
 
 			if (!IsOpened)
 				return;
