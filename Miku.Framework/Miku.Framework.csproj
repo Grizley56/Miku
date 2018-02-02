@@ -81,9 +81,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RectangleExtension.cs" />
     <Compile Include="StateEngine\GameState.cs" />
-    <Compile Include="StateEngine\GameStateController.cs" />
+    <Compile Include="StateEngine\GameStateManager.cs" />
     <Compile Include="StateEngine\IGameState.cs" />
-    <Compile Include="StateEngine\IGameStateController.cs" />
     <Compile Include="StringExtension.cs" />
   </ItemGroup>
   <ItemGroup />

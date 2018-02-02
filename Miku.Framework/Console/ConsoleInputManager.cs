@@ -11,6 +11,7 @@ namespace Miku.Framework.Console
 		private readonly GameConsole _console;
 		private bool _enabled;
 		private string _tempInput;
+		private bool _firstOpening = true; // TODO: Fix this hell
 
 		private readonly LinkedList<CommandInfo> _commandHistory = new LinkedList<CommandInfo>();
 		private LinkedListNode<CommandInfo> _selectedCommandFromHistory;
@@ -31,7 +32,11 @@ namespace Miku.Framework.Console
 					return;
 
 				if (value)
-					TextEditor.IgnoreInput(1); // TODO: ignore console open key only (safely)
+				{
+					if (!_firstOpening)
+						TextEditor.IgnoreInput(1); // TODO: Fix this hell
+					_firstOpening = false;			 // TODO: Fix this hell
+				}
 
 				_enabled = TextEditor.Enabled = value;
 			}
